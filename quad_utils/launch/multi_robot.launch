@@ -1,0 +1,63 @@
+<launch>
+
+    <arg name="reference" default="gbpl" />
+    <arg name="multiple_robots" default="true"/>
+    <arg name="logging" default="false" />
+    <arg name="twist_input" default="none" />
+    <arg name="leaping" default="true" />
+    <arg name="ac" default="false" />
+    <arg name="robot_type" default="spirit"/>
+    
+
+    <!-- Define namespaces for each robot -->
+    <arg name="namespace_1" default="robot_1"/>
+    <arg name="namespace_2" default="robot_2"/>
+
+    <group ns="$(arg namespace_1)">
+        <include file="$(find quad_utils)/launch/multi_planning.launch">
+            <arg name="reference" value="$(arg reference)" />
+            <arg name="logging" value="$(arg logging)" />
+            <arg name="leaping" value="$(arg leaping)" />
+            <arg name="ac" value="$(arg ac)" />
+            <arg name="robot_type" value="$(arg robot_type)" />
+            <arg name="namespace" value="$(arg namespace_1)" />
+            <arg name="twist_input" value="$(arg twist_input)" />
+            <arg name="multiple_robots" value="$(arg multiple_robots)" />
+        </include>
+    </group>
+
+    <group if="$(arg multiple_robots)">
+        <group ns="$(arg namespace_2)">
+            <include file="$(find quad_utils)/launch/multi_planning.launch">
+                <arg name="reference" value="$(arg reference)" />
+                <arg name="logging" value="$(arg logging)" />
+                <arg name="leaping" value="$(arg leaping)" />
+                <arg name="ac" value="$(arg ac)" />
+                <arg name="robot_type" value="$(arg robot_type)" />
+                <arg name="namespace" value="$(arg namespace_2)" />
+                <arg name="multiple_robots" value="$(arg multiple_robots)" />
+                <rosparam param="goal_state">[5.0, 1.0]</rosparam>
+            </include>
+        </group>
+    
+    <node name="conflict_based_search" pkg="conflict_based_search" type="conflict_based_search_node" output="screen">
+            </node>
+
+        <!-- Add more robots here -->
+
+
+    <!-- <param name="nmpc_controller/enable_adaptive_complexity" value="$(arg ac)" />
+    <node name="local_planner" pkg="local_planner" type="local_planner_node" output="screen" /> -->
+
+    <!-- Launch the node to publish body forece estimate messages-->
+    <!-- <node name="body_force_estimator" pkg="body_force_estimator" type="body_force_estimator_node" output="screen"/>
+
+    <group if="$(arg logging)">
+        <include file="$(find quad_utils)/launch/logging.launch">
+            <arg name="namespace" value="$(arg namespace)" />
+        </include>
+    </group>
+
+    <node name="plan_publisher" pkg="quad_utils" type="trajectory_publisher_node" output="screen" /> -->
+
+</launch>
