@@ -220,8 +220,11 @@ bool GlobalBodyPlanner::callPlanner() {
     // Call the planner method
     int plan_status = gbpl.findPlan(planner_config_, start_state, goal_state,
                                     state_sequence, action_sequence, tree_pub_);
-    newest_plan_.setComputedTimestamp(ros::Time::now());
+    int plan_status = gbpl.findPlanAgain(planner_config_, start_state, goal_state,
+                                    state_sequence, action_sequence, tree_pub_);  
 
+    newest_plan_.setComputedTimestamp(ros::Time::now());
+    
     if (plan_status != VALID && plan_status != VALID_PARTIAL) {
       if (plan_status == INVALID_START_STATE) {
         ROS_WARN_THROTTLE(1, "Invalid start state, exiting");
@@ -405,6 +408,7 @@ void GlobalBodyPlanner::spin() {
     // Set the start and goal states
     setStartState();// Chnages
     setGoalState(); // changes 
+     
 
     // Call the planner
     callPlanner(); // Changes
