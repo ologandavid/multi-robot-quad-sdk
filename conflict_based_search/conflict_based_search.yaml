@@ -1,2 +1,7 @@
 conflict_based_search:
   update_rate: 500
+  robot_names: ["robot_1", "robot_2"]
+
+
+
+  

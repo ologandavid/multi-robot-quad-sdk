@@ -20,6 +20,19 @@ find_package(catkin REQUIRED COMPONENTS
   eigen_conversions
   grid_map_core
   grid_map_ros
+  message_generation
+  global_body_planner
+)
+
+add_service_files(
+  FILES
+  ExampleService.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  global_body_planner
 )
 
 ## System dependencies are found with CMake's conventions
@@ -27,7 +40,7 @@ find_package(Eigen3 REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include ${EIGEN3_INCLUDE_DIRS} ${PYTHON_INCLUDE_DIRS}
-  CATKIN_DEPENDS roscpp std_msgs quad_msgs quad_utils eigen_conversions grid_map_core grid_map_ros quad_utils
+  CATKIN_DEPENDS roscpp std_msgs quad_msgs quad_utils eigen_conversions grid_map_core grid_map_ros quad_utils message_runtime global_body_planner
   DEPENDS EIGEN3
 )
 

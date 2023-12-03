@@ -10,8 +10,16 @@
     
 
     <!-- Define namespaces for each robot -->
+    <arg name="namespace_0" default="cbs"/>
     <arg name="namespace_1" default="robot_1"/>
     <arg name="namespace_2" default="robot_2"/>
+
+    <rosparam command="load" file="$(find conflict_based_search)/conflict_based_search.yaml" />
+
+    <group ns="$(arg namespace_0)">
+        <node name="conflict_based_search" pkg="conflict_based_search" type="conflict_based_search_node" output="screen">
+                </node>
+    </group>
 
     <group ns="$(arg namespace_1)">
         <include file="$(find quad_utils)/launch/multi_planning.launch">
@@ -35,13 +43,11 @@
                 <arg name="ac" value="$(arg ac)" />
                 <arg name="robot_type" value="$(arg robot_type)" />
                 <arg name="namespace" value="$(arg namespace_2)" />
-                <arg name="multiple_robots" value="$(arg multiple_robots)" />
                 <rosparam param="goal_state">[5.0, 1.0]</rosparam>
             </include>
         </group>
+    </group>
     
-    <node name="conflict_based_search" pkg="conflict_based_search" type="conflict_based_search_node" output="screen">
-            </node>
 
         <!-- Add more robots here -->
 

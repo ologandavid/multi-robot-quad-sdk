@@ -19,6 +19,18 @@ find_package(catkin REQUIRED COMPONENTS
   quad_utils
   grid_map_core
   grid_map_ros
+  message_generation
+)
+
+add_service_files(
+  FILES
+  ExampleService.srv
+  # Add other service files here if needed
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
 )
 
 ###################################
@@ -31,9 +43,9 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
+ INCLUDE_DIRS include srv
 #  LIBRARIES body_planner
- CATKIN_DEPENDS roscpp std_msgs grid_map_core grid_map_ros quad_utils
+ CATKIN_DEPENDS roscpp std_msgs grid_map_core grid_map_ros quad_utils message_runtime
 #  DEPENDS system_lib
 )
 

@@ -6,6 +6,7 @@
     <arg name="robot_type" default="spirit"/>
     <arg name="leaping" default="true" />
     <arg name="ac" default="false" />
+    <arg name="multiple_robots" default="true" />
 
     <include file="$(find quad_utils)/launch/load_robot_params.launch">
         <arg name="robot_type" value="$(arg robot_type)"/>

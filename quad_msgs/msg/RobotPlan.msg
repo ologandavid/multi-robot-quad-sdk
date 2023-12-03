@@ -5,6 +5,7 @@
 # This should match the first state in the states vector.
 
 Header header
+string robot_name
 time global_plan_timestamp
 time state_timestamp
 quad_msgs/RobotState[] states

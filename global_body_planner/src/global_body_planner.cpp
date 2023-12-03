@@ -1,4 +1,5 @@
 #include "global_body_planner/global_body_planner.h"
+#include "global_body_planner/ExampleService.h"
 
 using namespace planning_utils;
 
@@ -372,6 +373,8 @@ void GlobalBodyPlanner::publishCurrentPlan() {
     robot_plan_msg.header.frame_id = map_frame_;
     robot_plan_msg.header.stamp = ros::Time::now();
     discrete_robot_plan_msg.header = robot_plan_msg.header;
+    robot_plan_msg.robot_name = nh_.getNamespace().c_str();
+    discrete_robot_plan_msg.robot_name = nh_.getNamespace().c_str();
 
     // Initialize the headers and types
     robot_plan_msg.global_plan_timestamp =
@@ -383,11 +386,11 @@ void GlobalBodyPlanner::publishCurrentPlan() {
     current_plan_.convertToMsg(robot_plan_msg, discrete_robot_plan_msg);
 
     // Publish both messages
-    body_plan_pub_.publish(robot_plan_msg);
-    discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
+    // body_plan_pub_.publish(robot_plan_msg);
+    // discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
 
-    ROS_WARN("New plan published, stamp = %f",
-             robot_plan_msg.global_plan_timestamp.toSec());
+    // ROS_WARN("New plan published, stamp = %f",
+    //          robot_plan_msg.global_plan_timestamp.toSec());
   }
 }
 
@@ -408,7 +411,6 @@ void GlobalBodyPlanner::spin() {
 
     // Call the planner
     callPlanner();
-
     // Publish the results if valid
     publishCurrentPlan();
 
