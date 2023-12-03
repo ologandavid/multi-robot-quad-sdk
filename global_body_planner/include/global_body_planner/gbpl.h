@@ -96,6 +96,9 @@ class GBPL : public RRT {
   int findPlan(const PlannerConfig &planner_config, State s_start, State s_goal,
                std::vector<State> &state_sequence,
                std::vector<Action> &action_sequence, ros::Publisher &tree_pub);
+ int findPlanAgain(const PlannerConfig &planner_config, State s_start, State s_goal,
+               std::vector<State> &state_sequence,
+               std::vector<Action> &action_sequence, ros::Publisher &tree_pub);
 
  protected:
   /// Time horizon (in seconds) the planner is allowed to search until restarted

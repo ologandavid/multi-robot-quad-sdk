@@ -375,6 +375,10 @@ double poseDistance(const std::vector<double> &v1,
  */
 double stateDistance(const State &q1, const State &q2);
 
+/**for sequential **/
+void setFirstRobotPath(const std::vector<State>& path);
+bool conflictsWithFirstRobotPath(const State& state, double conflict_threshold, std::vector<State> first_robot_path); 
+
 /**
  * @brief Transform GRF from contact frame to spatial frame
  * @param[in] surface_norm Surface normal vector at contact point
