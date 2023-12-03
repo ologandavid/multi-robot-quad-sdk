@@ -169,8 +169,6 @@ double stateDistance(const State &q1, const State &q2) {
   return ((q2.pos - q1.pos).norm() * w_pos + (q2.vel - q1.vel).norm() * w_vel);
 }
 
-
-
 void setFirstRobotPath(const std::vector<State>& path) {
     first_robot_path = path;
 }
@@ -178,10 +176,10 @@ void setFirstRobotPath(const std::vector<State>& path) {
 bool conflictsWithFirstRobotPath(const State& state, double conflict_threshold) {
     for (const State& path_state : first_robot_path) {
         if (stateDistance(state, path_state) < conflict_threshold) {
-            return true;
+            return false;
         }
     }
-    return false;
+    return true;
 }
 
 

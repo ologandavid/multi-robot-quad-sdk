@@ -403,14 +403,14 @@ void GlobalBodyPlanner::spin() {
     ros::spinOnce();
 
     // Set the start and goal states
-    setStartState();
-    setGoalState();
+    setStartState();// Chnages
+    setGoalState(); // changes 
 
     // Call the planner
-    callPlanner();
+    callPlanner(); // Changes
 
     // Publish the results if valid
-    publishCurrentPlan();
+    publishCurrentPlan();// make changes
 
     r.sleep();
   }

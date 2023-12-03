@@ -224,7 +224,7 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
     // Generate random s
     State s_rand = Ta.randomState(planner_config);
 
-    if (isValidState(s_rand, planner_config, LEAP_STANCE)) {
+    if (isValidState(s_rand, planner_config, LEAP_STANCE) ) {
       if (extend(Ta, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
         State s_new = Ta.getVertex(Ta.getNumVertices() - 1);
 
