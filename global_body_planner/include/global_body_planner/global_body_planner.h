@@ -173,10 +173,10 @@ class GlobalBodyPlanner {
   GlobalBodyPlan current_plan_;
 
   /// Starting state for planner call
-  FullState start_state_;
+  FullState start_state_ ,start_state_new ;
 
   /// Goal state for planner
-  FullState goal_state_;
+  FullState goal_state_ , goal_state_new;
 
   /// Current robot state
   FullState robot_state_;
@@ -198,13 +198,13 @@ class GlobalBodyPlanner {
   bool restart_flag_;
 
   /// Sequence of discrete states in the plan
-  std::vector<State> state_sequence_;
+  std::vector<State> state_sequence_ , state_sequence_new  ;
 
   /// Sequence of discrete actions in the plan
-  std::vector<Action> action_sequence_;
+  std::vector<Action> action_sequence_, action_sequence_new ;
 
   /// Vector of cost instances in each planning call
-  std::vector<double> cost_vector_;
+  std::vector<double> cost_vector_, cost_vector_new;
 
   /// Vector of time instances of cost data for each planning call
   std::vector<double> cost_vector_times_;

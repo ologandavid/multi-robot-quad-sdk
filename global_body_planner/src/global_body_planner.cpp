@@ -125,7 +125,7 @@ void GlobalBodyPlanner::goalStateCallback(
   }
 }
 
-void GlobalBodyPlanner::setStartState() {
+void GlobalBodyPlanner::setStartStateStart() {
   // Reset if too far from plan
   if (!current_plan_.isEmpty() && !publish_after_reset_delay_) {
     int current_index;
@@ -177,7 +177,62 @@ void GlobalBodyPlanner::setStartState() {
   }
 }
 
-void GlobalBodyPlanner::setGoalState() {}
+void GlobalBodyPlanner::setGoalStateStart() {}
+
+
+void GlobalBodyPlanner::setStartStateGoal() {
+  // Reset if too far from plan
+  if (!current_plan_.isEmpty() && !publish_after_reset_delay_) {
+    int current_index;
+    double first_element_duration;
+    quad_utils::getPlanIndex(current_plan_.getPublishedTimestamp(), dt_,
+                             current_index, first_element_duration);
+    current_index = std::min(current_index, current_plan_.getSize() - 1);
+    FullState current_state_in_plan_ =
+        current_plan_.getStateFromIndex(current_index);
+    if (poseDistance(robot_state_, current_state_in_plan_) >
+        pos_error_threshold_) {
+      ROS_WARN_THROTTLE(0.5, "Too far from nominal plan, resetting");
+      triggerReset();
+    }
+  }
+
+  if (planner_status_ == RESET) {
+    ROS_INFO_THROTTLE(2, "In reset mode");
+    start_state_new = robot_state_;
+    replan_start_time_ = 0;
+    start_index_ = 0;
+    publish_after_reset_delay_ = true;
+
+  } else if (planner_status_ == REFINE) {
+    ROS_INFO_THROTTLE(2, "GBP in refine mode");
+
+    start_index_ =
+        std::floor((ros::Time::now() + ros::Duration(max_planning_time_) -
+                    current_plan_.getPublishedTimestamp())
+                       .toSec() /
+                   dt_);
+
+    // Ensure start index is not too close to goal
+    start_index_ = (start_index_ + 25 >= current_plan_.getSize() - 1)
+                       ? current_plan_.getSize() - 1
+                       : start_index_;
+
+    // Iterate until start_index is in a connect phase
+    while (current_plan_.getPrimitiveFromIndex(start_index_) != CONNECT &&
+           start_index_ < current_plan_.getSize() - 1) {
+      start_index_++;
+    }
+
+    start_state_new= current_plan_.getStateFromIndex(start_index_);
+    replan_start_time_ = current_plan_.getTime(start_index_);
+
+  } else {
+    ROS_ERROR("Invalid planning status");
+  }
+}
+
+void GlobalBodyPlanner::setGoalStateGoal() {}
 
 bool GlobalBodyPlanner::callPlanner() {
   if (!replanning_allowed_ && !publish_after_reset_delay_) {
@@ -194,8 +249,11 @@ bool GlobalBodyPlanner::callPlanner() {
   cost_vector_times_.clear();
 
   // Copy start and goal states and adjust for ground height
-  State start_state = fullStateToState(start_state_);
-  State goal_state = fullStateToState(goal_state_);
+  State start_state1 = fullStateToState(start_state_);
+  State goal_state1 = fullStateToState(goal_state_);
+
+  State start_state2 = fullStateToState(start_state_new);
+  State goal_state2 = fullStateToState(goal_state_new);
 
   // Initialize statistics variables
   double plan_time, path_length, path_duration, total_solve_time,
@@ -214,14 +272,12 @@ bool GlobalBodyPlanner::callPlanner() {
     }
 
     // Clear out previous solutions and initialize new statistics variables
-    std::vector<State> state_sequence;
-    std::vector<Action> action_sequence;
-
+    std::vector<State> first_robot_path;
     // Call the planner method
-    int plan_status = gbpl.findPlan(planner_config_, start_state, goal_state,
-                                    state_sequence, action_sequence, tree_pub_);
-    int plan_status = gbpl.findPlanAgain(planner_config_, start_state, goal_state,
-                                    state_sequence, action_sequence, tree_pub_);  
+    int plan_status = gbpl.findPlan(planner_config_, start_state1, goal_state1,
+                                    state_sequence, action_sequence, first_robot_path,tree_pub_);
+    int plan_status = gbpl.findPlanAgain(planner_config_, start_state2, goal_state2,
+                                    state_sequence, action_sequence,first_robot_path,tree_pub_);  
 
     newest_plan_.setComputedTimestamp(ros::Time::now());
     
@@ -406,9 +462,10 @@ void GlobalBodyPlanner::spin() {
     ros::spinOnce();
 
     // Set the start and goal states
-    setStartState();// Chnages
-    setGoalState(); // changes 
-     
+    setStartStateStart();// Chnages
+    setGoalStateStart(); // changes 
+    setStartStateGoal();// Chnages
+    setGoalStateGoal(); // changes 
 
     // Call the planner
     callPlanner(); // Changes

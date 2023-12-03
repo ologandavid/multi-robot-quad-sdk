@@ -305,7 +305,7 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
 
 int GBPL::findPlanAgain(const PlannerConfig &planner_config, State s_start,
                    State s_goal, std::vector<State> &state_sequence,
-                   std::vector<Action> &action_sequence,
+                   std::vector<Action> &action_sequence,const std::vector<State> &first_robot_path,
                    ros::Publisher &tree_pub) {
   // Perform validity checking on start and goal states
   if (!isValidState(s_start, planner_config, LEAP_STANCE)) {
@@ -371,7 +371,7 @@ int GBPL::findPlanAgain(const PlannerConfig &planner_config, State s_start,
     // Generate random s
     State s_rand = Ta.randomState(planner_config);
 
-    if (isValidState(s_rand, planner_config, LEAP_STANCE) && !conflictsWithFirstRobotPath(s_rand, conflict_threshold,state_sequence) ) {
+    if (isValidState(s_rand, planner_config, LEAP_STANCE) && !conflictsWithFirstRobotPath(s_rand, conflict_threshold,first_robot_path) ) {
       if (extend(Ta, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
         State s_new = Ta.getVertex(Ta.getNumVertices() - 1);
 
@@ -397,7 +397,7 @@ int GBPL::findPlanAgain(const PlannerConfig &planner_config, State s_start,
 
     s_rand = Tb.randomState(planner_config);
 
-    if (isValidState(s_rand, planner_config, LEAP_STANCE)&&!conflictsWithFirstRobotPath(s_rand, conflict_threshold,state_sequence) ) { 
+    if (isValidState(s_rand, planner_config, LEAP_STANCE)&&!conflictsWithFirstRobotPath(s_rand, conflict_threshold,first_robot_path) ) { 
       if (extend(Tb, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
         State s_new = Tb.getVertex(Tb.getNumVertices() - 1);
 
