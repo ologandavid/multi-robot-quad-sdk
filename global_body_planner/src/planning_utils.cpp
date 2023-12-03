@@ -1,6 +1,8 @@
 #include "global_body_planner/planning_utils.h"
 namespace planning_utils {
 
+std::vector<State> first_robot_path;
+
 State fullStateToState(const FullState &full_state) {
   State state;
   state.pos = full_state.pos;
@@ -166,6 +168,22 @@ double stateDistance(const State &q1, const State &q2) {
 
   return ((q2.pos - q1.pos).norm() * w_pos + (q2.vel - q1.vel).norm() * w_vel);
 }
+
+
+
+void setFirstRobotPath(const std::vector<State>& path) {
+    first_robot_path = path;
+}
+
+bool conflictsWithFirstRobotPath(const State& state, double conflict_threshold) {
+    for (const State& path_state : first_robot_path) {
+        if (stateDistance(state, path_state) < conflict_threshold) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 void addFullStates(const FullState &start_state,
                    std::vector<State> interp_reduced_plan, double dt,
