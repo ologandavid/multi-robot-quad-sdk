@@ -22,6 +22,26 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
 )
 
+# add_message_files(
+#   FILES
+#   BodyForceEstimate.msg
+#   RobotState.msg
+#   BodyState.msg
+#   GRFArray.msg
+#   RobotPlan.msg
+#   RobotPlanDiagnostics.msg
+#   FootState.msg
+#   MultiFootState.msg
+#   MultiFootPlanContinuous.msg
+#   FootPlanDiscrete.msg
+#   MultiFootPlanDiscrete.msg
+#   LegContactMode.msg
+#   ContactMode.msg
+#   MotorCommand.msg
+#   LegCommand.msg
+#   LegCommandArray.msg
+# )
+
 add_service_files(
   FILES
   ExampleService.srv
@@ -31,6 +51,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  quad_msgs
 )
 
 ###################################
@@ -45,7 +66,7 @@ generate_messages(
 catkin_package(
  INCLUDE_DIRS include srv
 #  LIBRARIES body_planner
- CATKIN_DEPENDS roscpp std_msgs grid_map_core grid_map_ros quad_utils message_runtime
+ CATKIN_DEPENDS roscpp std_msgs grid_map_core grid_map_ros quad_utils message_runtime quad_msgs
 #  DEPENDS system_lib
 )
 

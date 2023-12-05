@@ -15,7 +15,6 @@
     <arg name="namespace_2" default="robot_2"/>
 
     <rosparam command="load" file="$(find conflict_based_search)/conflict_based_search.yaml" />
-
     <group ns="$(arg namespace_0)">
         <node name="conflict_based_search" pkg="conflict_based_search" type="conflict_based_search_node" output="screen">
                 </node>

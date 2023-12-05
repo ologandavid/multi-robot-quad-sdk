@@ -24,14 +24,35 @@ find_package(catkin REQUIRED COMPONENTS
   global_body_planner
 )
 
-add_service_files(
-  FILES
-  ExampleService.srv
-)
+# add_service_files(
+#   FILES
+#   ExampleService.srv
+# )
+
+# add_message_files(
+#   FILES
+#   BodyForceEstimate.msg
+#   RobotState.msg
+#   BodyState.msg
+#   GRFArray.msg
+#   RobotPlan.msg
+#   RobotPlanDiagnostics.msg
+#   FootState.msg
+#   MultiFootState.msg
+#   MultiFootPlanContinuous.msg
+#   FootPlanDiscrete.msg
+#   MultiFootPlanDiscrete.msg
+#   LegContactMode.msg
+#   ContactMode.msg
+#   MotorCommand.msg
+#   LegCommand.msg
+#   LegCommandArray.msg
+# )
 
 generate_messages(
   DEPENDENCIES
   std_msgs
+  quad_msgs
   global_body_planner
 )
 

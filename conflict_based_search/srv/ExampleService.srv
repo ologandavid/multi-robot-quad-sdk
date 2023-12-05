@@ -1,6 +1,0 @@
-# Request message
-int32 a
-int32 b
----
-# Response message
-int32 sum

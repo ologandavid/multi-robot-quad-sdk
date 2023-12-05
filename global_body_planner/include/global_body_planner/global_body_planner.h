@@ -16,6 +16,7 @@
 
 #include "global_body_planner/gbpl.h"
 #include "global_body_planner/global_body_plan.h"
+#include "global_body_planner/ExampleService.h"
 
 using namespace planning_utils;
 
@@ -47,6 +48,11 @@ class GlobalBodyPlanner {
    * component
    */
   void spin();
+
+  bool addServiceCallback(global_body_planner::ExampleService::Request &req,
+                              global_body_planner::ExampleService::Response &res);
+  quad_msgs::RobotPlan robot_plan_msg;
+
 
  private:
   /**
@@ -248,6 +254,7 @@ class GlobalBodyPlanner {
 
   /// Timestamp for t=0 of global plan
   ros::Time global_plan_timestamp_;
+
 };
 
 #endif  // GLOBAL_BODY_PLANNER_H

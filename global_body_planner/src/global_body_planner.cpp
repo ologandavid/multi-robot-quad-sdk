@@ -351,24 +351,24 @@ void GlobalBodyPlanner::publishCurrentPlan() {
   //    b) The new plan is the best plan
 
   // Check conditions 1) and 2) return if false
-  if (current_plan_.isEmpty() ||
-      ((ros::Time::now() - reset_time_).toSec() <= reset_publish_delay_))
-    return;
-
-  // Check condition 3
-  if (publish_after_reset_delay_ || newest_plan_ == current_plan_) {
-    // If this is a reset, update the timestamp and switch back to refinement
-    // mode
-    if (publish_after_reset_delay_) {
-      ROS_INFO("Switching to refinement mode");
-      current_plan_.setPublishedTimestamp(ros::Time::now());
-      planner_status_ = REFINE;
-      publish_after_reset_delay_ = false;
-    }
+  // if (current_plan_.isEmpty() ||
+  //     ((ros::Time::now() - reset_time_).toSec() <= reset_publish_delay_))
+  //   return;
+  // // std::cout <<"Here 1" << std::endl;
+  // // Check condition 3
+  // if (publish_after_reset_delay_ || newest_plan_ == current_plan_) {
+  //   // If this is a reset, update the timestamp and switch back to refinement
+  //   // mode
+  //   if (publish_after_reset_delay_) {
+  //     ROS_INFO("Switching to refinement mode");
+  //     current_plan_.setPublishedTimestamp(ros::Time::now());
+  //     planner_status_ = REFINE;
+  //     publish_after_reset_delay_ = false;
+  //   }
 
     // Declare the messages for interpolated body plan and discrete states,
     // initialize their headers
-    quad_msgs::RobotPlan robot_plan_msg;
+    // quad_msgs::RobotPlan robot_plan_msg;
     quad_msgs::RobotPlan discrete_robot_plan_msg;
     robot_plan_msg.header.frame_id = map_frame_;
     robot_plan_msg.header.stamp = ros::Time::now();
@@ -384,14 +384,44 @@ void GlobalBodyPlanner::publishCurrentPlan() {
 
     // Load the plan into the messages
     current_plan_.convertToMsg(robot_plan_msg, discrete_robot_plan_msg);
-
+    // std::cout << "7" << std::endl;
     // Publish both messages
     // body_plan_pub_.publish(robot_plan_msg);
     // discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
-
+    // std::cout << "Here 2 " << std::endl;
     // ROS_WARN("New plan published, stamp = %f",
     //          robot_plan_msg.global_plan_timestamp.toSec());
-  }
+  // }
+}
+
+bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::Request &req,
+                                            global_body_planner::ExampleService::Response &res){
+    std::cout << "Recieves Request" << std::endl;
+    // if (robot_plan_msg.states.empty()){ //&& robot_plan_msg.header.stamp > last_processed_plan_stamp_){
+    // waitForData();
+    // setStartState();
+    // setGoalState();
+    triggerReset();
+    callPlanner();
+    // Publish the results if valid
+    publishCurrentPlan();
+    ROS_INFO_STREAM("Size" << robot_plan_msg.states.size());
+    // ROS_INFO_STREAM("Message" << robot_plan_msg);
+    res.plan = robot_plan_msg;
+    robot_plan_msg = quad_msgs::RobotPlan(); // Clear the Value of Robot Plan Msg
+    // res.curr_plan = current_plan_;
+    // last_processed_plan_stamp_ = robot_plan_msg.header.stamp;
+    return true;
+    // }
+    // else {
+    //   // triggerReset();
+    //   // setStartState();
+    //   // setGoalState();
+    //   // callPlanner();
+    //   // publishCurrentPlan();
+    //   std::cout << "Empty Plan" << std::endl;
+    //   return false;
+    // }
 }
 
 void GlobalBodyPlanner::spin() {
@@ -400,19 +430,24 @@ void GlobalBodyPlanner::spin() {
   // Wait until we get map and state data
   waitForData();
 
+  // Initialize the Service Adevrtising Robot Plans
+  ros::ServiceServer service = nh_.advertiseService("add_two_ints", &GlobalBodyPlanner::addServiceCallback, this);
+  // ROS_INFO("Service node ready to provide service.");
+
   // Enter main spin
   while (ros::ok()) {
     // Process callbacks
     ros::spinOnce();
-
-    // Set the start and goal states
+    // // Set the start and goal states
     setStartState();
     setGoalState();
 
-    // Call the planner
-    callPlanner();
-    // Publish the results if valid
-    publishCurrentPlan();
+    // // Call the planner
+    // callPlanner();
+    // // Publish the results if valid
+    // publishCurrentPlan();
+    // ROS_INFO_STREAM(robot_plan_msg);
+
 
     r.sleep();
   }
