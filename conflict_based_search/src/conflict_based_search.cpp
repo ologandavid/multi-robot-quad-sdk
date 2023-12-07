@@ -42,9 +42,86 @@ void ConflictBasedSearch::requestPaths(){
 }
 
 void ConflictBasedSearch::parsePaths(){
+
+  int counter = 0;
+  for (const auto robot_a : robot_names_){
+    for (const auto robot_b : robot_names_){
+      if (robot_a != robot_b){
+        for(int i = 0; i < max_path_length_; i++){
+            State r1_state;
+            State r2_state;
+            r1_state.pos = Eigen::Vector3d{robot_plan_map_[robot_a].states[i].body.pose.position.x, 
+                                              robot_plan_map_[robot_a].states[i].body.pose.position.y, 
+                                                robot_plan_map_[robot_a].states[i].body.pose.position.z};                                              
+            r2_state.pos = Eigen::Vector3d{robot_plan_map_[robot_b].states[i].body.pose.position.x, 
+                                              robot_plan_map_[robot_b].states[i].body.pose.position.y, 
+                                                robot_plan_map_[robot_b].states[i].body.pose.position.z};
+            if (poseDistance(r1_state, r2_state) < threshold){
+              ros::Time r1_time = robot_plan_map_[robot_a].states[i].header.stamp;
+              ros::Time r2_time = robot_plan_map_[robot_b].states[i].header.stamp;
+              ros::Duration timeDifference = r1_time - r2_time;
+              double timeDifferenceInSeconds = timeDifference.toSec();
+              if (std::abs(timeDifferenceInSeconds) < time_thresh){
+                std::cout << "Finds Collision: " << robot_plan_map_[robot_a].states[i].body.pose.position.x << robot_plan_map_[robot_b].states[i].body.pose.position.x << ", at Time:" <<  timeDifferenceInSeconds << std::endl;
+                counter++;
+              }
+            }
+          }
+      }
+    }
+  }
+  std::cout << "Counter Value" << counter << std::endl;
   return;
 }
 
+// double ConflictBasedSearch::calcDistance(double x1, double y1, double z1
+//                                           double x2, double y2, double z2){
+//   double dist = std::sqrt(std::pow((x1-x2),2)+ std::pow((y1-y2),2) + std::pow((z1-z2),2));
+//   return dist;
+// }
+
+double ConflictBasedSearch::poseDistance(const State &s1, const State &s2) {
+  return (s1.pos - s2.pos).norm();
+}
+
+void ConflictBasedSearch::publishPaths(){
+  for (const auto robot : robot_names_)
+    robot_plan_pubs_[robot].publish(robot_plan_map_[robot]);
+  return;
+}
+
+void ConflictBasedSearch::equalizePaths(){
+  std::cout << "Original Robot 1 State Vector Size: " << robot_plan_map_["robot_1"].states.size() <<std::endl;
+  std::cout << "Original Robot 2 State Vector Size: " << robot_plan_map_["robot_2"].states.size() <<std::endl;
+
+  // Equalize the timescale of each RobotPlan for CBS
+  int max_path_length_= 0; // Find the length of the longest path
+  for (const auto robot : robot_names_){
+    if (robot_plan_map_[robot].states.size() > max_path_length_){
+      max_path_length_ = robot_plan_map_[robot].states.size();
+    }
+  }
+
+  for (const auto robot : robot_names_){
+    if (robot_plan_map_[robot].states.size() < max_path_length_){
+      quad_msgs::RobotState finalState = robot_plan_map_[robot].states.back();
+      ros::Time t_f = finalState.header.stamp;
+      std::vector<quad_msgs::RobotState>* shorterStates = &robot_plan_map_[robot].states;
+      
+      int diff = max_path_length_ - robot_plan_map_[robot].states.size(); 
+      for (int i= 0; i < diff; i++){
+        ros::Duration duration_to_add(i*0.03);
+        finalState.header.stamp += duration_to_add;
+        shorterStates->push_back(finalState);
+      }
+      robot_plan_map_[robot].states= *shorterStates;
+    }
+  }
+  ROS_INFO_STREAM(robot_plan_map_["robot_1"]);
+  std::cout << "New Robot 1 State Vector Size: " << robot_plan_map_["robot_1"].states.size() <<std::endl;
+  std::cout << "New Robot 2 State Vector Size: " << robot_plan_map_["robot_2"].states.size() <<std::endl;
+  return;
+}
 
 void ConflictBasedSearch::spin() {
   ros::Rate r(update_rate_);
@@ -61,8 +138,12 @@ void ConflictBasedSearch::spin() {
     bool service_available = ros::service::waitForService("/robot_1/add_two_ints", timeout_duration);
     if (service_available){
       if (pathFound){
-      requestPaths();
-      pathFound = false;
+        requestPaths();
+        equalizePaths();
+        parsePaths();
+        publishPaths(); //Check to See if Duplicated Paths are Valid
+        pathFound = false;
+
       }
     }
     r.sleep();

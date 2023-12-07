@@ -405,7 +405,7 @@ bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::
     callPlanner();
     // Publish the results if valid
     publishCurrentPlan();
-    ROS_INFO_STREAM("Size" << robot_plan_msg.states.size());
+    // ROS_INFO_STREAM("Size" << robot_plan_msg.states.size());
     // ROS_INFO_STREAM("Message" << robot_plan_msg);
     res.plan = robot_plan_msg;
     robot_plan_msg = quad_msgs::RobotPlan(); // Clear the Value of Robot Plan Msg
