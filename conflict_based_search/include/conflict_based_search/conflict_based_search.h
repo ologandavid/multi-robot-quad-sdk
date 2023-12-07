@@ -99,6 +99,8 @@ class ConflictBasedSearch {
 
   double time_thresh = 0.03;
 
+  int max_path_length_;
+
   // /// ROS subscriber for incoming body plans
   // std::map<std::string, ros::Subscriber> discrete_body_plan_subs_;
 

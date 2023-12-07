@@ -95,7 +95,7 @@ void ConflictBasedSearch::equalizePaths(){
   std::cout << "Original Robot 2 State Vector Size: " << robot_plan_map_["robot_2"].states.size() <<std::endl;
 
   // Equalize the timescale of each RobotPlan for CBS
-  int max_path_length_= 0; // Find the length of the longest path
+  max_path_length_= 0; // Find the length of the longest path
   for (const auto robot : robot_names_){
     if (robot_plan_map_[robot].states.size() > max_path_length_){
       max_path_length_ = robot_plan_map_[robot].states.size();
@@ -107,7 +107,7 @@ void ConflictBasedSearch::equalizePaths(){
       quad_msgs::RobotState finalState = robot_plan_map_[robot].states.back();
       ros::Time t_f = finalState.header.stamp;
       std::vector<quad_msgs::RobotState>* shorterStates = &robot_plan_map_[robot].states;
-      
+
       int diff = max_path_length_ - robot_plan_map_[robot].states.size(); 
       for (int i= 0; i < diff; i++){
         ros::Duration duration_to_add(i*0.03);
