@@ -26,7 +26,7 @@ void ConflictBasedSearch::createServiceClients(){
   }
 }
 
-void ConflictBasedSearch::requestPaths(){
+void ConflictBasedSearch::requestInitialPaths(){
   for (const auto robot : robot_names_){
     // std::cout <<" 1" << std::endl;
     global_body_planner::ExampleService::Request req;
@@ -35,93 +35,104 @@ void ConflictBasedSearch::requestPaths(){
     global_body_planner::ExampleService::Response res;
     if(robot_clients_[robot].call(req, res)){
       robot_plan_map_[robot] = res.plan;
-      // ROS_INFO_STREAM(robot_plan_map_[robot]);
     }
   }
   return;
 }
 
-void ConflictBasedSearch::parsePaths(){
+// Compares Relative Pose Distances Between Two Robot States
+double ConflictBasedSearch::comDistance(const quad_msgs::RobotState &s1, const quad_msgs::RobotState &s2) {
+  double x1 = s1.body.pose.position.x;
+  double y1 = s1.body.pose.position.y;
+  double z1 = s1.body.pose.position.z;
 
-  int counter = 0;
-  for (const auto robot_a : robot_names_){
-    for (const auto robot_b : robot_names_){
-      if (robot_a != robot_b){
-        for(int i = 0; i < max_path_length_; i++){
-            State r1_state;
-            State r2_state;
-            r1_state.pos = Eigen::Vector3d{robot_plan_map_[robot_a].states[i].body.pose.position.x, 
-                                              robot_plan_map_[robot_a].states[i].body.pose.position.y, 
-                                                robot_plan_map_[robot_a].states[i].body.pose.position.z};                                              
-            r2_state.pos = Eigen::Vector3d{robot_plan_map_[robot_b].states[i].body.pose.position.x, 
-                                              robot_plan_map_[robot_b].states[i].body.pose.position.y, 
-                                                robot_plan_map_[robot_b].states[i].body.pose.position.z};
-            if (poseDistance(r1_state, r2_state) < threshold){
-              ros::Time r1_time = robot_plan_map_[robot_a].states[i].header.stamp;
-              ros::Time r2_time = robot_plan_map_[robot_b].states[i].header.stamp;
-              ros::Duration timeDifference = r1_time - r2_time;
-              double timeDifferenceInSeconds = timeDifference.toSec();
-              if (std::abs(timeDifferenceInSeconds) < time_thresh){
-                std::cout << "Finds Collision: " << robot_plan_map_[robot_a].states[i].body.pose.position.x << robot_plan_map_[robot_b].states[i].body.pose.position.x << ", at Time:" <<  timeDifferenceInSeconds << std::endl;
-                counter++;
-              }
+  double x2 = s2.body.pose.position.x;
+  double y2 = s2.body.pose.position.y;
+  double z2 = s2.body.pose.position.z;
+  return std::sqrt(std::pow(x2 - x1, 2) + std::pow(y2 - y1, 2) + std::pow(z2 - z1, 2));
+  // return (s1.body.pose - s2.body.pose).norm();
+}
+
+// Given two inputs states, collision threshold checks pose distance for collision
+bool ConflictBasedSearch::statesIntersect(const quad_msgs::RobotState &state_1,
+                      const quad_msgs::RobotState &state_2, double threshold){
+  if (comDistance(state_1, state_2) < threshold){
+    return true;
+  }
+  return false;
+}
+
+
+// Identifies and updates collisions between each robot path
+// Updates Map with Collision Struct ([ts, tf], r1, r2)
+bool ConflictBasedSearch::doPlansCollide(){ // Maybe Take the Top Two loops outside of this fcn for cleanliness
+  for (const auto& robot_a : robot_names_){
+    for (const auto& robot_b : robot_names_){ // Iterate over each pair of robots
+      if (robot_a != robot_b){ // Avoid Repeats
+
+      int t_s = 0; // Indicies of Collision Start and End
+      int l_collision = 0;
+
+        for (int i = 0; i < robot_plan_map_[robot_a].plan_indices.back(); i++){  //Check Local Planner if RobotState Msg is iterable
+          quad_msgs::RobotState current_state_;
+          current_state_ = robot_plan_map_[robot_a].states[i];
+          double t = robot_plan_map_[robot_a].states[i].header.stamp.toSec(); // Time in Plan A
+          double t_plan_b_final = robot_plan_map_[robot_b].states.back().header.stamp.toSec(); // Time of Last Element of Plan B
+          double t_interp = std::min(t, t_plan_b_final); // Make sure we account for different path lengths
+
+          //Interpolate to get the Corresponding Robot State in the Second Plan
+          quad_msgs::RobotState interp_state_;
+          int c_idx; // Keep track of the corresponding time index after interpolation
+          for (int j = 0; j < robot_plan_map_[robot_b].states.size()-1; j++){
+            if ((t_interp >= robot_plan_map_[robot_b].states[j].header.stamp.toSec()) &&
+                    (t_interp < robot_plan_map_[robot_b].states[j+1].header.stamp.toSec())){
+                      quad_utils::interpRobotState(robot_plan_map_[robot_b].states[j],
+                      robot_plan_map_[robot_b].states[j+1], t_interp, interp_state_);
+                      c_idx = j;
             }
           }
+          // std::cout << "Indices" << i << " , " << c_idx <<std::endl;
+
+          //Check for collisions after finding the Corresponding Robot State
+          if (statesIntersect(current_state_, interp_state_, threshold)){
+            if (l_collision == 0){
+              l_collision++;
+              t_s = i;
+            }
+            else{
+              l_collision++;
+            }
+          }
+          else{
+            if (l_collision != 0){
+              // Reset counter to 0, add the existing conflict to the conflict list
+              std::tuple<std::string, std::string, int, int> conflict;
+              std::cout << "Conflict Tuple: " << robot_a << " , " << robot_b << " , " << t_s << " , " << i-1 << std::endl;
+              conflict = std::make_tuple(robot_a, robot_b, t_s, i-1);
+              conflict_list.push_back(conflict);
+              l_collision = 0;
+              ROS_INFO_STREAM("Adding Conflicts");
+            }
+          }
+        }
       }
     }
   }
-  std::cout << "Counter Value" << counter << std::endl;
-  return;
+  return false;
 }
 
-// double ConflictBasedSearch::calcDistance(double x1, double y1, double z1
-//                                           double x2, double y2, double z2){
-//   double dist = std::sqrt(std::pow((x1-x2),2)+ std::pow((y1-y2),2) + std::pow((z1-z2),2));
-//   return dist;
-// }
-
-double ConflictBasedSearch::poseDistance(const State &s1, const State &s2) {
-  return (s1.pos - s2.pos).norm();
-}
-
+// Publishes the found Collision Free Path
 void ConflictBasedSearch::publishPaths(){
   for (const auto robot : robot_names_)
     robot_plan_pubs_[robot].publish(robot_plan_map_[robot]);
   return;
 }
 
-void ConflictBasedSearch::equalizePaths(){
-  std::cout << "Original Robot 1 State Vector Size: " << robot_plan_map_["robot_1"].states.size() <<std::endl;
-  std::cout << "Original Robot 2 State Vector Size: " << robot_plan_map_["robot_2"].states.size() <<std::endl;
-
-  // Equalize the timescale of each RobotPlan for CBS
-  max_path_length_= 0; // Find the length of the longest path
-  for (const auto robot : robot_names_){
-    if (robot_plan_map_[robot].states.size() > max_path_length_){
-      max_path_length_ = robot_plan_map_[robot].states.size();
-    }
-  }
-
-  for (const auto robot : robot_names_){
-    if (robot_plan_map_[robot].states.size() < max_path_length_){
-      quad_msgs::RobotState finalState = robot_plan_map_[robot].states.back();
-      ros::Time t_f = finalState.header.stamp;
-      std::vector<quad_msgs::RobotState>* shorterStates = &robot_plan_map_[robot].states;
-
-      int diff = max_path_length_ - robot_plan_map_[robot].states.size(); 
-      for (int i= 0; i < diff; i++){
-        ros::Duration duration_to_add(i*0.03);
-        finalState.header.stamp += duration_to_add;
-        shorterStates->push_back(finalState);
-      }
-      robot_plan_map_[robot].states= *shorterStates;
-    }
-  }
-  ROS_INFO_STREAM(robot_plan_map_["robot_1"]);
-  std::cout << "New Robot 1 State Vector Size: " << robot_plan_map_["robot_1"].states.size() <<std::endl;
-  std::cout << "New Robot 2 State Vector Size: " << robot_plan_map_["robot_2"].states.size() <<std::endl;
+// Converts Conflicts in the Conflict Tree to Position Constraints for the Robot
+void ConflictBasedSearch::getConstaintFromConflict(){
   return;
 }
+
 
 void ConflictBasedSearch::spin() {
   ros::Rate r(update_rate_);
@@ -138,10 +149,14 @@ void ConflictBasedSearch::spin() {
     bool service_available = ros::service::waitForService("/robot_1/add_two_ints", timeout_duration);
     if (service_available){
       if (pathFound){
-        requestPaths();
-        equalizePaths();
-        parsePaths();
-        publishPaths(); //Check to See if Duplicated Paths are Valid
+        requestInitialPaths();
+        bool collide = doPlansCollide();
+        if (collide){
+          publishPaths(); //Check to See if Duplicated Paths are Valid
+        }
+        else{
+          getConstraintFromConflict();
+        }
         pathFound = false;
 
       }

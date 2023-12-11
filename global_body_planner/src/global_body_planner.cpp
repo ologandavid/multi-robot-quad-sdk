@@ -35,6 +35,13 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
   quad_utils::loadROSParam(nh_, "/global_body_planner/goal_state",
                            goal_state_vec);
 
+  std::string ns = nh_.getNamespace(); // Need to Come up With a Better Way to do This
+  if (ns == "/robot_2"){
+    goal_state_vec = {5.0, 0.0};
+  }
+  // quad_utils::loadROSParam(nh_, ns + "/goal_state", goal_state_vec);
+  // quad_utils::loadROSParamDefault(nh_, "/global_body_planner/goal_state",
+  //                          goal_state_vec, {5.0, -1.0});
   // Setup pubs and subs
   terrain_map_sub_ = nh_.subscribe(
       terrain_map_topic_, 1, &GlobalBodyPlanner::terrainMapCallback, this);
@@ -58,7 +65,7 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
     planner_config_.h_min = 0;
     planner_config_.h_max = 0.5;
   }
-
+  std::cout << "Goal Vec Here" << goal_state_vec[0] <<"," << goal_state_vec[1] <<std::endl;
   // Fill in the goal state information
   goal_state_vec.resize(12, 0);
   vectorToFullState(goal_state_vec, goal_state_);
