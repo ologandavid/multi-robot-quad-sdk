@@ -8,7 +8,8 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
   // Load rosparams from parameter server
   std::string body_plan_topic, discrete_body_plan_topic, body_plan_tree_topic,
       goal_state_topic;
-  std::vector<double> goal_state_vec(2);
+  std::vector<double> r1goal_state_vec = {5.0, -1.0};
+  std::vector<double> r2goal_state_vec = {5.0, 1.0};
 
   quad_utils::loadROSParam(nh_, "topics/start_state", robot_state_topic_);
   quad_utils::loadROSParam(nh_, "topics/goal_state", goal_state_topic);
@@ -31,18 +32,19 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
   quad_utils::loadROSParam(nh_, "/global_body_planner/replanning",
                            replanning_allowed_);
   quad_utils::loadROSParam(nh_, "/local_planner/timestep", dt_);
-  quad_utils::loadROSParam(nh_, "/global_body_planner/goal_state",
-                           goal_state_vec);
   // Setup pubs and subs
   terrain_map_sub_ = nh_.subscribe(
       terrain_map_topic_, 1, &GlobalBodyPlanner::terrainMapCallback, this);
-  robot_state_sub_ = nh_.subscribe(
-      robot_state_topic_, 1, &GlobalBodyPlanner::robotStateCallback, this);
-  goal_state_sub_ = nh_.subscribe(goal_state_topic, 1,
-                                  &GlobalBodyPlanner::goalStateCallback, this);
-  body_plan_pub_ = nh_.advertise<quad_msgs::RobotPlan>(body_plan_topic, 1);
-  discrete_body_plan_pub_ =
-      nh_.advertise<quad_msgs::RobotPlan>(discrete_body_plan_topic, 1);
+  r1robot_state_sub_ = nh_.subscribe(
+      "/robot_1/state/ground_truth", 1, &GlobalBodyPlanner::robotStateCallbackr1, this);
+  r2robot_state_sub_ = nh_.subscribe(
+      "/robot_2/state/ground_truth", 1, &GlobalBodyPlanner::robotStateCallbackr2, this);
+  //goal_state_sub_ = nh_.subscribe(goal_state_topic, 1,
+   //                               &GlobalBodyPlanner::goalStateCallback, this);
+  r1body_plan_pub_ = nh_.advertise<quad_msgs::RobotPlan>("/robot_1/global_plan", 1);
+  r2body_plan_pub_ = nh_.advertise<quad_msgs::RobotPlan>("/robot_2/global_plan", 1);
+  //discrete_body_plan_pub_ =
+    //  nh_.advertise<quad_msgs::RobotPlan>(discrete_body_plan_topic, 1);
   tree_pub_ =
       nh_.advertise<visualization_msgs::MarkerArray>(body_plan_tree_topic, 1);
 
@@ -58,8 +60,11 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
   }
 
   // Fill in the goal state information
-  goal_state_vec.resize(12, 0);
-  vectorToFullState(goal_state_vec, goal_state_);
+  r1goal_state_vec.resize(12, 0);
+  vectorToFullState(r1goal_state_vec, r1goal_state_);
+  // Fill in the goal state information
+  r2goal_state_vec.resize(12, 0);
+  vectorToFullState(r2goal_state_vec, r2goal_state_);
 
   // Zero planning data
   start_index_ = 0;
@@ -77,22 +82,31 @@ void GlobalBodyPlanner::terrainMapCallback(
   planner_config_.terrain_grid_map = map;            // Takes ~0.1ms
 
   // Uodate the goal state of the planner
-  goal_state_.pos[2] =
+  r1goal_state_.pos[2] =
       planner_config_.h_nom + planner_config_.terrain.getGroundHeight(
-                                  goal_state_.pos[0], goal_state_.pos[1]);
+                                  r1goal_state_.pos[0], r1goal_state_.pos[1]);
+  r2goal_state_.pos[2] =
+      planner_config_.h_nom + planner_config_.terrain.getGroundHeight(
+                                  r2goal_state_.pos[0], r2goal_state_.pos[1]);
 }
 
-void GlobalBodyPlanner::robotStateCallback(
+void GlobalBodyPlanner::robotStateCallbackr1(
     const quad_msgs::RobotState::ConstPtr& msg) {
-  eigenToFullState(quad_utils::bodyStateMsgToEigen(msg->body), robot_state_);
+  eigenToFullState(quad_utils::bodyStateMsgToEigen(msg->body), r1robot_state_);
+}
+
+void GlobalBodyPlanner::robotStateCallbackr2(
+    const quad_msgs::RobotState::ConstPtr& msg) {
+  eigenToFullState(quad_utils::bodyStateMsgToEigen(msg->body), r2robot_state_);
 }
 
 void GlobalBodyPlanner::triggerReset() {
   planner_status_ = RESET;
-  current_plan_.clear();
+  r1current_plan_.clear();
+  r2current_plan_.clear();
   reset_time_ = ros::Time::now();
 }
-
+/*
 void GlobalBodyPlanner::goalStateCallback(
     const geometry_msgs::PointStamped::ConstPtr& msg) {
   // If same as previous goal state, ignore
@@ -123,9 +137,10 @@ void GlobalBodyPlanner::goalStateCallback(
     triggerReset();
   }
 }
-
-void GlobalBodyPlanner::setStartState() {
+*/
+FullState GlobalBodyPlanner::setStartState(FullState robot_state_, GlobalBodyPlan current_plan_) {
   // Reset if too far from plan
+  FullState start_state_;
   if (!current_plan_.isEmpty() && !publish_after_reset_delay_) {
     int current_index;
     double first_element_duration;
@@ -174,17 +189,20 @@ void GlobalBodyPlanner::setStartState() {
   } else {
     ROS_ERROR("Invalid planning status");
   }
+  return start_state_;
 }
 
 void GlobalBodyPlanner::setGoalState() {}
 
 bool GlobalBodyPlanner::callPlanner() {
   if (!replanning_allowed_ && !publish_after_reset_delay_) {
-    newest_plan_.setComputedTimestamp(ros::Time::now());
+    r1newest_plan_.setComputedTimestamp(ros::Time::now());
+    r2newest_plan_.setComputedTimestamp(ros::Time::now());
     return false;
   }
 
-  newest_plan_ = current_plan_;
+  r1newest_plan_ = r1current_plan_;
+  r2newest_plan_ = r2current_plan_;
 
   // Clear out old statistics
   solve_time_info_.clear();
@@ -193,19 +211,29 @@ bool GlobalBodyPlanner::callPlanner() {
   cost_vector_times_.clear();
 
   // Copy start and goal states and adjust for ground height
-  State start_state = fullStateToState(start_state_);
-  State goal_state = fullStateToState(goal_state_);
-
+  State r1start_state = fullStateToState(r1start_state_);
+  State r2start_state = fullStateToState(r2start_state_);
+  MultipleState start_state;
+  start_state.rob1 = r2start_state;
+  start_state.rob2 = r1start_state;
+  State r1goal_state = fullStateToState(r1goal_state_);
+  State r2goal_state = fullStateToState(r2goal_state_);
+  MultipleState goal_state;
+  goal_state.rob1 = r2goal_state;
+  goal_state.rob2 = r1goal_state;
+  std::cout << "Start State Before rob1: " << start_state.rob1.pos << std::endl;
+  std::cout << "Start State Before rob2: " << start_state.rob2.pos << std::endl;
   // Initialize statistics variables
   double plan_time, path_length, path_duration, total_solve_time,
       total_vertices_generated, total_path_length, total_path_duration,
-      dist_to_goal;
+      r1dist_to_goal, r2dist_to_goal;
   int vertices_generated;
 
   // Construct RRT object
   GBPL gbpl;
 
   // Loop through num_calls_ planner calls
+  num_calls_ = 1;
   for (int i = 0; i < num_calls_; ++i) {
     // Exit if ros is down
     if (!ros::ok()) {
@@ -213,14 +241,14 @@ bool GlobalBodyPlanner::callPlanner() {
     }
 
     // Clear out previous solutions and initialize new statistics variables
-    std::vector<State> state_sequence;
-    std::vector<Action> action_sequence;
+    std::vector<MultipleState> state_sequence;
+    std::vector<MultipleAction> action_sequence;
 
     // Call the planner method
     int plan_status = gbpl.findPlan(planner_config_, start_state, goal_state,
                                     state_sequence, action_sequence, tree_pub_);
-    newest_plan_.setComputedTimestamp(ros::Time::now());
-
+    r1newest_plan_.setComputedTimestamp(ros::Time::now());
+    r2newest_plan_.setComputedTimestamp(ros::Time::now());
     if (plan_status != VALID && plan_status != VALID_PARTIAL) {
       if (plan_status == INVALID_START_STATE) {
         ROS_WARN_THROTTLE(1, "Invalid start state, exiting");
@@ -236,10 +264,10 @@ bool GlobalBodyPlanner::callPlanner() {
       return false;
     }
     gbpl.getStatistics(plan_time, vertices_generated, path_length,
-                       path_duration, dist_to_goal);
+                       path_duration, r1dist_to_goal, r2dist_to_goal);
 
     // Add the existing path length to the new
-    path_length += current_plan_.getLengthAtIndex(start_index_);
+    path_length += r1current_plan_.getLengthAtIndex(start_index_);
 
     // Handle the statistical data
     cost_vector_.push_back(path_length);
@@ -252,12 +280,31 @@ bool GlobalBodyPlanner::callPlanner() {
 
     solve_time_info_.push_back(plan_time);
     vertices_generated_info_.push_back(vertices_generated);
-    std::cout << "Plan length: " << state_sequence[1].pos << std::endl;
-    newest_plan_.eraseAfterIndex(start_index_);
-    newest_plan_.loadPlanData(plan_status, start_state_, dist_to_goal,
-                              state_sequence, action_sequence, dt_,
-                              replan_start_time_, planner_config_);
 
+    r1newest_plan_.eraseAfterIndex(start_index_);
+    r2newest_plan_.eraseAfterIndex(start_index_);
+    std::vector<State> r1state_sequence;
+    std::vector<State> r2state_sequence;
+    for (const auto& item : state_sequence) {
+        r1state_sequence.push_back(item.rob1);
+        r2state_sequence.push_back(item.rob2);
+    }
+    std::vector<Action> r1action_sequence;
+    std::vector<Action> r2action_sequence;
+    for (const auto& item : action_sequence) {
+        r1action_sequence.push_back(item.rob1);
+        r2action_sequence.push_back(item.rob2);
+    }
+    std::cout << "Action Seq 1: " << r1action_sequence.size() << std::endl;
+    std::cout << "Action Seq 2: " << r2action_sequence.size() << std::endl;
+    r2newest_plan_.loadPlanData(plan_status, r2start_state_, r2dist_to_goal,
+                              r2state_sequence, r2action_sequence, dt_,
+                              replan_start_time_, planner_config_);
+    std::cout << "Here 1 in function: " << std::endl;
+    r1newest_plan_.loadPlanData(plan_status, r1start_state_, r1dist_to_goal,
+                              r1state_sequence, r1action_sequence, dt_,
+                              replan_start_time_, planner_config_);
+    std::cout << "Here 2 in function: " << std::endl;
     // Check if this plan is better:
     // 1) If valid and shorter or previous plan not valid OR
     // 2) If partially valid and closer to the goal OR
@@ -265,22 +312,19 @@ bool GlobalBodyPlanner::callPlanner() {
     double eps = 0.99;  // Require significant improvement
     bool is_updated = false;
     if ((plan_status == VALID) &&
-        ((newest_plan_.getLength() / eps) < current_plan_.getLength() ||
-         current_plan_.getStatus() != VALID)) {
+        ((r2newest_plan_.getLength() / eps) < r2current_plan_.getLength() ||
+         r2current_plan_.getStatus() != VALID)) {
       ROS_INFO("valid and shorter or previous plan not valid");
       is_updated = true;
 
     } else if ((plan_status == VALID_PARTIAL) &&
-               (current_plan_.getStatus() == UNSOLVED ||
-                (poseDistance(state_sequence.back(), goal_state) <
-                 current_plan_.getGoalDistance()))) {
+               (r2current_plan_.getStatus() == UNSOLVED ||
+                (poseDistance(r2state_sequence.back(), r2goal_state) <
+                 r2current_plan_.getGoalDistance()))) {
       ROS_INFO("partially valid and closer to the goal");
       is_updated = true;
     }
-
     if (is_updated) {
-      state_sequence_ = state_sequence;
-      action_sequence_ = action_sequence;
 
       std::cout << "Solve time: " << plan_time << " s" << std::endl;
       std::cout << "Vertices generated: " << vertices_generated << std::endl;
@@ -288,7 +332,8 @@ bool GlobalBodyPlanner::callPlanner() {
       std::cout << "Path duration: " << path_duration << " s" << std::endl;
       std::cout << std::endl;
 
-      current_plan_ = newest_plan_;
+      r1current_plan_ = r1newest_plan_;
+      r2current_plan_ = r2newest_plan_;
     }
 
     return is_updated;
@@ -339,8 +384,75 @@ void GlobalBodyPlanner::getInitialPlan() {
     success = callPlanner();
   }
 }
-
 void GlobalBodyPlanner::publishCurrentPlan() {
+  // Conditions for publishing current plan:
+  // 1) Plan not empty AND
+  // 2) Reset publish delay has passed AND
+  // 3) One of the following conditions is met:
+  //    a) Current plan not yet published after reset
+  //    b) The new plan is the best plan
+
+  // Check conditions 1) and 2) return if false
+  if (r1current_plan_.isEmpty() ||
+      ((ros::Time::now() - reset_time_).toSec() <= reset_publish_delay_))
+    return;
+
+  // Check condition 3
+  if (publish_after_reset_delay_ || r2newest_plan_ == r2current_plan_) {
+    // If this is a reset, update the timestamp and switch back to refinement
+    // mode
+    if (publish_after_reset_delay_) {
+      ROS_INFO("Switching to refinement mode");
+      r1current_plan_.setPublishedTimestamp(ros::Time::now());
+      r2current_plan_.setPublishedTimestamp(ros::Time::now());
+      planner_status_ = REFINE;
+      publish_after_reset_delay_ = false;
+    }
+
+    // Declare the messages for interpolated body plan and discrete states,
+    // initialize their headers
+    quad_msgs::RobotPlan r1robot_plan_msg;
+    quad_msgs::RobotPlan r1discrete_robot_plan_msg;
+    quad_msgs::RobotPlan r2robot_plan_msg;
+    quad_msgs::RobotPlan r2discrete_robot_plan_msg;
+    r1robot_plan_msg.header.frame_id = map_frame_;
+    r1robot_plan_msg.header.stamp = ros::Time::now();
+    r1discrete_robot_plan_msg.header = r1robot_plan_msg.header;
+    r2robot_plan_msg.header.frame_id = map_frame_;
+    r2robot_plan_msg.header.stamp = ros::Time::now();
+    r2discrete_robot_plan_msg.header = r2robot_plan_msg.header;
+
+    // Initialize the headers and types
+    r1robot_plan_msg.global_plan_timestamp =
+        r1current_plan_.getPublishedTimestamp();
+    r1discrete_robot_plan_msg.global_plan_timestamp =
+        r1current_plan_.getPublishedTimestamp();
+    r2robot_plan_msg.global_plan_timestamp =
+        r2current_plan_.getPublishedTimestamp();
+    r2discrete_robot_plan_msg.global_plan_timestamp =
+        r2current_plan_.getPublishedTimestamp();
+
+    // Load the plan into the messages
+    r1current_plan_.convertToMsg(r1robot_plan_msg, r1discrete_robot_plan_msg);
+    r2current_plan_.convertToMsg(r2robot_plan_msg, r2discrete_robot_plan_msg);
+
+    // Publish both messages
+    r2body_plan_pub_.publish(r2robot_plan_msg);
+    r1body_plan_pub_.publish(r1robot_plan_msg);
+    //r1discrete_body_plan_pub_.publish(r1discrete_robot_plan_msg);
+
+    
+    //r2discrete_body_plan_pub_.publish(r2discrete_robot_plan_msg);
+
+    ROS_WARN("New plan published, stamp = %f",
+             r1robot_plan_msg.global_plan_timestamp.toSec());
+    ROS_WARN("New plan published, stamp = %f",
+             r2robot_plan_msg.global_plan_timestamp.toSec());
+  }
+}
+
+/*
+void GlobalBodyPlanner::publishCurrentPlanr2(GlobalBodyPlan current_plan_, GlobalBodyPlan newest_plan_, ros::Publisher body_plan_pub_) {
   // Conditions for publishing current plan:
   // 1) Plan not empty AND
   // 2) Reset publish delay has passed AND
@@ -383,13 +495,13 @@ void GlobalBodyPlanner::publishCurrentPlan() {
 
     // Publish both messages
     body_plan_pub_.publish(robot_plan_msg);
-    discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
+    // discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
 
     ROS_WARN("New plan published, stamp = %f",
              robot_plan_msg.global_plan_timestamp.toSec());
   }
 }
-
+*/
 void GlobalBodyPlanner::spin() {
   ros::Rate r(update_rate_);
 
@@ -402,15 +514,16 @@ void GlobalBodyPlanner::spin() {
     ros::spinOnce();
 
     // Set the start and goal states
-    setStartState();
+    r1start_state_ = setStartState(r1robot_state_, r1current_plan_);
+    r2start_state_ = setStartState(r2robot_state_, r2current_plan_);
     setGoalState();
-
+    std::cout << "MADE IT HERE1: " << std::endl;
     // Call the planner
     callPlanner();
-
+    std::cout << "MADE IT HERE2: " << std::endl;
     // Publish the results if valid
     publishCurrentPlan();
-
+    std::cout << "MADE IT HERE4: " << std::endl;
     r.sleep();
   }
 }
