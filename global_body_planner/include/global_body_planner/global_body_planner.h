@@ -239,6 +239,8 @@ class GlobalBodyPlanner {
   /// Index of active plan from which to begin refinement
   int start_index_;
 
+  double cbs_path_length;
+
   /// Planning status ID for resetting (start from scratch)
   static const int RESET = 0;
 

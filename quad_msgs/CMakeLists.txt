@@ -24,6 +24,7 @@ add_message_files(
   GRFArray.msg
   RobotPlan.msg
   RobotPlanDiagnostics.msg
+  RobotPlanConflicts.msg
   FootState.msg
   MultiFootState.msg
   MultiFootPlanContinuous.msg

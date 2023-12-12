@@ -1,6 +1,6 @@
 # Request message
-int32 a
-int32 b
+quad_msgs/RobotPlanConflicts conflicts
 ---
 # Response message
 quad_msgs/RobotPlan plan
+float64 path_length

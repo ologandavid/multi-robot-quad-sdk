@@ -296,7 +296,7 @@ bool GlobalBodyPlanner::callPlanner() {
       std::cout << "Path length: " << path_length << " m" << std::endl;
       std::cout << "Path duration: " << path_duration << " s" << std::endl;
       std::cout << std::endl;
-
+      cbs_path_length = path_length;
       current_plan_ = newest_plan_;
     }
 
@@ -404,6 +404,9 @@ void GlobalBodyPlanner::publishCurrentPlan() {
 bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::Request &req,
                                             global_body_planner::ExampleService::Response &res){
     std::cout << "Recieves Request" << std::endl;
+    std::cout <<"Row Size" << req.conflicts.rows << std::endl;
+    std::cout <<"Col Size" << req.conflicts.cols << std::endl;
+    // Add function to Recompose Conflicts
     // if (robot_plan_msg.states.empty()){ //&& robot_plan_msg.header.stamp > last_processed_plan_stamp_){
     // waitForData();
     // setStartState();
@@ -415,7 +418,11 @@ bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::
     // ROS_INFO_STREAM("Size" << robot_plan_msg.states.size());
     // ROS_INFO_STREAM("Message" << robot_plan_msg);
     res.plan = robot_plan_msg;
-    robot_plan_msg = quad_msgs::RobotPlan(); // Clear the Value of Robot Plan Msg
+    res.path_length = cbs_path_length;
+
+    // Reset the Value of Robot Plan Msg, Path Length
+    robot_plan_msg = quad_msgs::RobotPlan(); 
+    cbs_path_length = 0;
     // res.curr_plan = current_plan_;
     // last_processed_plan_stamp_ = robot_plan_msg.header.stamp;
     return true;
