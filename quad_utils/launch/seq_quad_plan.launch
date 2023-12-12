@@ -1,0 +1,61 @@
+<launch>
+
+    <arg name="reference" default="gbpl" />
+    <arg name="multiple_robots" default="false"/>
+    <arg name="logging" default="false" />
+    <arg name="twist_input" default="none" />
+    <arg name="leaping" default="true" />
+    <arg name="ac" default="false" />
+    <arg name="robot_type" default="spirit"/>
+
+    <!-- Define namespaces for each robot -->
+    <arg name="namespace_1" default="robot_1"/>
+    <arg name="namespace_2" default="robot_2"/>
+
+    <group ns="$(arg namespace_1)">
+        <include file="$(find quad_utils)/launch/load_robot_params.launch">
+            <arg name="robot_type" value="$(arg robot_type)"/>
+        </include>
+        <group if="$(eval arg('reference') == 'gbpl')">
+        <node name="seq_global_body_planner" pkg="seq_global_body_planner" type="seq_global_body_planner_node" output="screen">
+            <remap from="start_state" to="state/ground_truth" />
+            <remap from="goal_state" to="clicked_point" />
+            <param name="enable_leaping" value="$(arg leaping)" />
+        </node>
+        <param name="local_planner/use_twist_input" value="false" />
+        </group>
+
+    </group>
+
+    <!-- Launch the node to publish the global body plan -->
+    
+    <group ns="$(arg namespace_1)">
+        <include file="$(find quad_utils)/launch/seq_planning.launch">
+            <arg name="reference" value="$(arg reference)" />
+            <arg name="logging" value="$(arg logging)" />
+            <arg name="leaping" value="$(arg leaping)" />
+            <arg name="ac" value="$(arg ac)" />
+            <arg name="robot_type" value="$(arg robot_type)" />
+            <arg name="namespace" value="$(arg namespace_1)" />
+            <arg name="twist_input" value="$(arg twist_input)" />
+        </include>
+    </group>
+
+    <group if="$(arg multiple_robots)">
+        <group ns="$(arg namespace_2)">
+            <include file="$(find quad_utils)/launch/seq_planning.launch">
+                <arg name="reference" value="$(arg reference)" />
+                <arg name="logging" value="$(arg logging)" />
+                <arg name="leaping" value="$(arg leaping)" />
+                <arg name="ac" value="$(arg ac)" />
+                <arg name="robot_type" value="$(arg robot_type)" />
+                <arg name="namespace" value="$(arg namespace_2)" />
+                <rosparam param="goal_state">[5.0, 1.0]</rosparam>
+            </include>
+        </group>
+
+        <!-- Add more robots here -->
+    </group>
+
+    
+</launch>
