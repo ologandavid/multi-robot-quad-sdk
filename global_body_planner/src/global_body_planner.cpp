@@ -39,9 +39,7 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
   if (ns == "/robot_2"){
     goal_state_vec = {5.0, 0.0};
   }
-  // quad_utils::loadROSParam(nh_, ns + "/goal_state", goal_state_vec);
-  // quad_utils::loadROSParamDefault(nh_, "/global_body_planner/goal_state",
-  //                          goal_state_vec, {5.0, -1.0});
+
   // Setup pubs and subs
   terrain_map_sub_ = nh_.subscribe(
       terrain_map_topic_, 1, &GlobalBodyPlanner::terrainMapCallback, this);
@@ -65,7 +63,7 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
     planner_config_.h_min = 0;
     planner_config_.h_max = 0.5;
   }
-  std::cout << "Goal Vec Here" << goal_state_vec[0] <<"," << goal_state_vec[1] <<std::endl;
+
   // Fill in the goal state information
   goal_state_vec.resize(12, 0);
   vectorToFullState(goal_state_vec, goal_state_);
@@ -391,15 +389,36 @@ void GlobalBodyPlanner::publishCurrentPlan() {
 
     // Load the plan into the messages
     current_plan_.convertToMsg(robot_plan_msg, discrete_robot_plan_msg);
-    // std::cout << "7" << std::endl;
     // Publish both messages
     // body_plan_pub_.publish(robot_plan_msg);
     // discrete_body_plan_pub_.publish(discrete_robot_plan_msg);
-    // std::cout << "Here 2 " << std::endl;
     // ROS_WARN("New plan published, stamp = %f",
     //          robot_plan_msg.global_plan_timestamp.toSec());
   // }
 }
+
+std::vector<std::vector<double>> GlobalBodyPlanner::recomposeVector(const std::vector<double>& flattenedVector, 
+                                                            int rows, int columns) {
+    std::vector<std::vector<double>> result;
+    if (rows * columns != flattenedVector.size()) {
+        std::cout << "Invalid input dimensions for recomposition!" << std::endl;
+        return result; // Return an empty vector as invalid dimensions were provided
+    }
+    if (rows == 0){ // Handle Empty List Scenario
+      return result;
+    }
+    auto iter = flattenedVector.begin();
+    for (int i = 0; i < rows; ++i) {
+        std::vector<double> row;
+        for (int j = 0; j < columns; ++j) {
+            row.push_back(*iter);
+            ++iter;
+        }
+        result.push_back(row);
+    }
+    return result;
+}
+
 
 bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::Request &req,
                                             global_body_planner::ExampleService::Response &res){
@@ -411,6 +430,14 @@ bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::
     // waitForData();
     // setStartState();
     // setGoalState();
+    std::vector<std::vector<double>> constraintVector;
+    constraintVector = recomposeVector(req.conflicts.robot_pos, req.conflicts.rows, req.conflicts.cols);
+    // ROS_INFO_STREAM("Recomposed Constraints Size"); // Check Recomposing Constraint Vector
+    // ROS_INFO_STREAM(constraintVector.size());
+    // if (constraintVector.size() != 0){
+    //   ROS_INFO_STREAM(constraintVector[0].size());
+    // }
+    // ROS_INFO_STREAM(constraintVector[0].size());
     triggerReset();
     callPlanner();
     // Publish the results if valid

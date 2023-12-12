@@ -6,7 +6,6 @@
     <arg name="robot_type" default="spirit"/>
     <arg name="leaping" default="true" />
     <arg name="ac" default="false" />
-    <arg name="multiple_robots" default="true" />
 
     <include file="$(find quad_utils)/launch/load_robot_params.launch">
         <arg name="robot_type" value="$(arg robot_type)"/>
@@ -22,10 +21,10 @@
         <param name="local_planner/use_twist_input" value="false" />
     </group>
     
-    <!-- <param name="nmpc_controller/enable_adaptive_complexity" value="$(arg ac)" />
-    <node name="local_planner" pkg="local_planner" type="local_planner_node" output="screen" /> 
+    <param name="nmpc_controller/enable_adaptive_complexity" value="$(arg ac)" />
+    <node name="local_planner" pkg="local_planner" type="local_planner_node" output="screen" />
 
-    Launch the node to publish body forece estimate messages
+    <!-- Launch the node to publish body forece estimate messages -->
     <node name="body_force_estimator" pkg="body_force_estimator" type="body_force_estimator_node" output="screen"/>
 
     <group if="$(arg logging)">
@@ -34,6 +33,6 @@
         </include>
     </group>
 
-    <node name="plan_publisher" pkg="quad_utils" type="trajectory_publisher_node" output="screen" /> -->
+    <node name="plan_publisher" pkg="quad_utils" type="trajectory_publisher_node" output="screen" />
 
 </launch>

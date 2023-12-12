@@ -55,7 +55,6 @@ void ConflictBasedSearch::requestInitialPaths(GraphNode& node){
   plan_conflicts.robot_pos = {};
   plan_conflicts.rows = 0;
   plan_conflicts.cols = 0;
-  double c = 0.0;
   for (const auto robot : node.robot_names_){
     // std::cout <<" 1" << std::endl;
     global_body_planner::ExampleService::Request req;
@@ -63,10 +62,11 @@ void ConflictBasedSearch::requestInitialPaths(GraphNode& node){
     global_body_planner::ExampleService::Response res;
     if(robot_clients_[robot].call(req, res)){
       node.robot_plan_map_[robot] = res.plan;
-      c += res.path_length;
+      node.cost_map[robot] = res.path_length;
     }
   }
-  node.cost = c;
+  node.updateCost();
+  // std::cout << "Updated Cost" << node.cost << std::endl;
   return;
 }
 
@@ -96,12 +96,14 @@ void ConflictBasedSearch::requestPath(GraphNode& node,
   global_body_planner::ExampleService::Request req;
   req.conflicts = plan_conflicts;
   global_body_planner::ExampleService::Response res;
- 
   if(robot_clients_[robot].call(req, res)){
    
     node.robot_plan_map_[robot] = res.plan;
+    node.cost_map[robot] = res.path_length;
     // c += res.path_length; // Fix How I Update Path Cost
   }
+  node.updateCost();
+  // std::cout << "Updated Cost" << node.cost << std::endl;
   return;
 }
 
@@ -239,9 +241,14 @@ void ConflictBasedSearch::updateSuccessors(GraphNode& node1, GraphNode& node2,
 
 // Publishes The found Collision Free Path
 void ConflictBasedSearch::publishPaths(GraphNode& node){
-  for (const auto robot : node.robot_names_)
+  //Update Header Stamp
+  for (const auto robot : node.robot_names_){
+    node.robot_plan_map_[robot].header.stamp = ros::Time::now();
+    node.robot_plan_map_[robot].global_plan_timestamp = ros::Time::now();
     robot_plan_pubs_[robot].publish(node.robot_plan_map_[robot]);
+  }
   return;
+
 }
 
 void ConflictBasedSearch::printConstraints(std::vector<std::vector<double>>& positions){
@@ -318,7 +325,7 @@ void ConflictBasedSearch::spin() {
           else{ //Check paths for Collisions, and Publish Paths if Not
             if (!doPlansCollide(*current_node_, conflict_list)){
               ROS_INFO_STREAM("FOUND COLLISION FREE PATHS");
-              // publishPaths(*current_node_);
+              publishPaths(*current_node_);
               // std::cout << conflict_list.size() <<std::endl;
               goal_reached_ = true;
             }
@@ -347,11 +354,10 @@ void ConflictBasedSearch::spin() {
               requestPath(*successor_1, curr_conflict, 0);
               requestPath(*successor_2, curr_conflict, 1);
               
-
               // printConstraints(successor_1->constraints_);
               queue.push(successor_1);
               queue.push(successor_2);
-
+              std::cout << "Queue Size" << queue.size() << std::endl;
               
               //Pop off the first element Collision, add both nodes to the queue
               // Handle Collisions, Pop off First Collision, 

@@ -51,6 +51,7 @@ class GlobalBodyPlanner {
 
   bool addServiceCallback(global_body_planner::ExampleService::Request &req,
                               global_body_planner::ExampleService::Response &res);
+
   quad_msgs::RobotPlan robot_plan_msg;
 
 
@@ -132,6 +133,9 @@ class GlobalBodyPlanner {
    * @brief Publish the current plan if updated
    */
   void publishCurrentPlan();
+
+  std::vector<std::vector<double>> recomposeVector(const std::vector<double>& flattenedVector, 
+                                                            int rows, int columns);
 
   /// Subscriber for terrain map messages
   ros::Subscriber terrain_map_sub_;

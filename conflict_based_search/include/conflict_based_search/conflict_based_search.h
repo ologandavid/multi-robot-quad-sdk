@@ -22,6 +22,7 @@ class GraphNode{
     std::map<std::string, quad_msgs::RobotPlan> robot_plan_map_;
     double cost;
     std::map <std::string, std::vector<std::vector<double>>> constraints_; 
+    std::map <std::string, double> cost_map;
     // Positional Constraints from Other Robot
 
     // Constructor with parameters
@@ -42,6 +43,14 @@ class GraphNode{
         this->robot_plan_map_ = source.robot_plan_map_;
         this->cost = source.cost;
         this->constraints_ = source.constraints_;
+        this->cost_map = source.cost_map;
+    }
+
+    void updateCost(){
+      cost = 0.0;
+      for (const auto robot :robot_names_){
+        cost += cost_map[robot];
+      }
     }
 
     // Node Comparator for Priority Queue
