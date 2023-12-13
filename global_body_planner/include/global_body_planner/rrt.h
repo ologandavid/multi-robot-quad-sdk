@@ -41,7 +41,7 @@ class RRT {
    * @return Int describing the result of the attempt (TRAPPED, ADVANCED, or
    * REACHED)
    */
-  int attemptConnect(const State &s_existing, const State &s, double t_s,
+  int attemptConnect(std::vector<std::vector<double>> &constraints, const State &s_existing, const State &s, double t_s,
                      StateActionResult &result,
                      const PlannerConfig &planner_config, int direction);
 
@@ -54,7 +54,7 @@ class RRT {
    * @return Int describing the result of the attempt (TRAPPED, ADVANCED, or
    * REACHED)
    */
-  int attemptConnect(const State &s_existing, const State &s,
+  int attemptConnect(std::vector<std::vector<double>> &constraints, const State &s_existing, const State &s,
                      StateActionResult &result,
                      const PlannerConfig &planner_config, int direction);
 
@@ -65,7 +65,7 @@ class RRT {
    * @param[in] direction The direction with which to peform the extension
    * (FORWARD to go away from the root vertex, REVERSE to go towards it)
    */
-  virtual int extend(PlannerClass &T, const State &s,
+  virtual int extend(std::vector<std::vector<double>> &constraints, PlannerClass &T, const State &s,
                      const PlannerConfig &planner_config, int direction,
                      ros::Publisher &tree_pub);
 
@@ -109,7 +109,7 @@ class RRT {
    * @return Boolean if the new state got closer to the specified state than any
    * other in the tree
    */
-  bool newConfig(State s, State s_near, StateActionResult &result,
+  bool newConfig(std::vector<std::vector<double>> &constraints, State s, State s_near, StateActionResult &result,
                  const PlannerConfig &planner_config, int direction,
                  ros::Publisher &tree_pub);
 

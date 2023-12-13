@@ -31,7 +31,7 @@ class GBPL : public RRT {
    * (FORWARD to go away from the root vertex, REVERSE to go towards it)
    * @param[in] tree_pub Publisher for broadcasting the tree visual
    */
-  int connect(PlannerClass &T, State s, const PlannerConfig &planner_config,
+  int connect(std::vector<std::vector<double>> &constraints, PlannerClass &T, State s, const PlannerConfig &planner_config,
               int direction, ros::Publisher &tree_pub);
 
   /**
@@ -51,7 +51,7 @@ class GBPL : public RRT {
    * @param[in] action_sequence The sequence of actions in the path
    * @param[in] planner_config Configuration parameters
    */
-  void postProcessPath(std::vector<State> &state_sequence,
+  void postProcessPath(std::vector<std::vector<double>> &constraints, std::vector<State> &state_sequence,
                        std::vector<Action> &action_sequence,
                        const PlannerConfig &planner_config);
 
@@ -64,7 +64,7 @@ class GBPL : public RRT {
    * @param[out] action_sequence The sequence of actions in th  e path
    * @param[in] planner_config Configuration parameters
    */
-  void extractPath(PlannerClass &Ta, PlannerClass &Tb,
+  void extractPath(std::vector<std::vector<double>> &constraints, PlannerClass &Ta, PlannerClass &Tb,
                    std::vector<State> &state_sequence,
                    std::vector<Action> &action_sequence,
                    const PlannerConfig &planner_config);
@@ -78,7 +78,7 @@ class GBPL : public RRT {
    * @param[out] action_sequence The sequence of actions in th  e path
    * @param[in] terrain Height map of the terrain
    */
-  void extractClosestPath(PlannerClass &Ta, const State &s_goal,
+  void extractClosestPath(std::vector<std::vector<double>> &constraints, PlannerClass &Ta, const State &s_goal,
                           std::vector<State> &state_sequence,
                           std::vector<Action> &action_sequence,
                           const PlannerConfig &planner_config);
@@ -95,7 +95,8 @@ class GBPL : public RRT {
    */
   int findPlan(const PlannerConfig &planner_config, State s_start, State s_goal,
                std::vector<State> &state_sequence,
-               std::vector<Action> &action_sequence, ros::Publisher &tree_pub);
+               std::vector<Action> &action_sequence, ros::Publisher &tree_pub,
+               std::vector<std::vector<double>> &constraints);
 
  protected:
   /// Time horizon (in seconds) the planner is allowed to search until restarted

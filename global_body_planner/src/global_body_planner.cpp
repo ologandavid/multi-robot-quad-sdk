@@ -37,7 +37,7 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
 
   std::string ns = nh_.getNamespace(); // Need to Come up With a Better Way to do This
   if (ns == "/robot_2"){
-    goal_state_vec = {5.0, 0.0};
+    goal_state_vec = {0.0, 1.0};
   }
 
   // Setup pubs and subs
@@ -185,7 +185,7 @@ void GlobalBodyPlanner::setStartState() {
 
 void GlobalBodyPlanner::setGoalState() {}
 
-bool GlobalBodyPlanner::callPlanner() {
+bool GlobalBodyPlanner::callPlanner(std::vector<std::vector<double>> &constraints) {
   if (!replanning_allowed_ && !publish_after_reset_delay_) {
     newest_plan_.setComputedTimestamp(ros::Time::now());
     return false;
@@ -225,7 +225,7 @@ bool GlobalBodyPlanner::callPlanner() {
 
     // Call the planner method
     int plan_status = gbpl.findPlan(planner_config_, start_state, goal_state,
-                                    state_sequence, action_sequence, tree_pub_);
+                                    state_sequence, action_sequence, tree_pub_, constraints);
     newest_plan_.setComputedTimestamp(ros::Time::now());
 
     if (plan_status != VALID && plan_status != VALID_PARTIAL) {
@@ -343,7 +343,8 @@ void GlobalBodyPlanner::getInitialPlan() {
   // Repeatedly call the planner until the startup delay has elapsed
   while (ros::ok() && ((ros::Time::now() - start_time) <
                        ros::Duration(reset_publish_delay_))) {
-    success = callPlanner();
+    std::vector<std::vector<double>> tempVector = {};
+    success = callPlanner(tempVector);
   }
 }
 
@@ -422,9 +423,9 @@ std::vector<std::vector<double>> GlobalBodyPlanner::recomposeVector(const std::v
 
 bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::Request &req,
                                             global_body_planner::ExampleService::Response &res){
-    std::cout << "Recieves Request" << std::endl;
-    std::cout <<"Row Size" << req.conflicts.rows << std::endl;
-    std::cout <<"Col Size" << req.conflicts.cols << std::endl;
+    // std::cout << "Recieves Request" << std::endl;
+    // std::cout <<"Row Size" << req.conflicts.rows << std::endl;
+    // std::cout <<"Col Size" << req.conflicts.cols << std::endl;
     // Add function to Recompose Conflicts
     // if (robot_plan_msg.states.empty()){ //&& robot_plan_msg.header.stamp > last_processed_plan_stamp_){
     // waitForData();
@@ -439,7 +440,7 @@ bool GlobalBodyPlanner::addServiceCallback(global_body_planner::ExampleService::
     // }
     // ROS_INFO_STREAM(constraintVector[0].size());
     triggerReset();
-    callPlanner();
+    callPlanner(constraintVector);
     // Publish the results if valid
     publishCurrentPlan();
     // ROS_INFO_STREAM("Size" << robot_plan_msg.states.size());

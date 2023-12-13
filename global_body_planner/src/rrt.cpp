@@ -8,7 +8,7 @@ RRT::~RRT() {}
 
 using namespace planning_utils;
 
-bool RRT::newConfig(State s, State s_near, StateActionResult &result,
+bool RRT::newConfig(std::vector<std::vector<double>> &constraints, State s, State s_near, StateActionResult &result,
                     const PlannerConfig &planner_config, int direction,
                     ros::Publisher &tree_pub) {
   double best_so_far = stateDistance(s_near, s);
@@ -16,7 +16,7 @@ bool RRT::newConfig(State s, State s_near, StateActionResult &result,
   // Try connecting directly
   StateActionResult current_result;
   int connect_result =
-      attemptConnect(s_near, s, current_result, planner_config, direction);
+      attemptConnect(constraints, s_near, s, current_result, planner_config, direction);
   if (connect_result != TRAPPED) {
     double current_dist = stateDistance(current_result.s_new, s);
 
@@ -48,7 +48,7 @@ bool RRT::newConfig(State s, State s_near, StateActionResult &result,
         getRandomLeapAction(s_near, surf_norm, a_test, planner_config);
     num_total_actions++;
     for (int j = 0; j < planner_config.num_leap_samples; ++j) {
-      bool is_valid = isValidStateActionPair(s_near, a_test, current_result,
+      bool is_valid = isValidStateActionPair(constraints, s_near, a_test, current_result,
                                              planner_config);
 
 #ifdef VISUALIZE_ALL_CANDIDATE_ACTIONS
@@ -90,7 +90,7 @@ bool RRT::newConfig(State s, State s_near, StateActionResult &result,
   }
 }
 
-int RRT::attemptConnect(const State &s_existing, const State &s, double t_s,
+int RRT::attemptConnect(std::vector<std::vector<double>> &constraints, const State &s_existing, const State &s, double t_s,
                         StateActionResult &result,
                         const PlannerConfig &planner_config, int direction) {
   // Enforce stance time greater than the kinematic check resolution to ensure
@@ -137,10 +137,10 @@ int RRT::attemptConnect(const State &s_existing, const State &s, double t_s,
   if (isValidAction(result.a_new, planner_config)) {
     // If valid, great, return REACHED, otherwise try again to the valid state
     // returned by isValidStateActionPair
-    if (isValidStateActionPair(s_start, result.a_new, result, planner_config)) {
+    if (isValidStateActionPair(constraints, s_start, result.a_new, result, planner_config)) {
       return REACHED;
     } else {
-      if (attemptConnect(s_existing, result.s_new, result.t_new, result,
+      if (attemptConnect(constraints, s_existing, result.s_new, result.t_new, result,
                          planner_config, direction) == TRAPPED)
         return TRAPPED;
       else
@@ -151,24 +151,24 @@ int RRT::attemptConnect(const State &s_existing, const State &s, double t_s,
   return TRAPPED;
 }
 
-int RRT::attemptConnect(const State &s_existing, const State &s,
+int RRT::attemptConnect(std::vector<std::vector<double>> &constraints, const State &s_existing, const State &s,
                         StateActionResult &result,
                         const PlannerConfig &planner_config, int direction) {
   // select desired stance time to enforce a nominal stance velocity
   double t_s = 6.0 * poseDistance(s, s_existing) /
                ((s_existing.vel + s.vel).norm() + 4.0 * planner_config.v_nom);
 
-  return attemptConnect(s_existing, s, t_s, result, planner_config, direction);
+  return attemptConnect(constraints, s_existing, s, t_s, result, planner_config, direction);
 }
 
-int RRT::extend(PlannerClass &T, const State &s,
+int RRT::extend(std::vector<std::vector<double>> &constraints, PlannerClass &T, const State &s,
                 const PlannerConfig &planner_config, int direction,
                 ros::Publisher &tree_pub) {
   int s_near_index = T.getNearestNeighbor(s);
   State s_near = T.getVertex(s_near_index);
   StateActionResult result;
 
-  if (newConfig(s, s_near, result, planner_config, direction, tree_pub)) {
+  if (newConfig(constraints, s, s_near, result, planner_config, direction, tree_pub)) {
     int s_new_index = T.getNumVertices();
     T.addVertex(s_new_index, result.s_new);
     T.addEdge(s_near_index, s_new_index, result.length);

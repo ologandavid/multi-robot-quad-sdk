@@ -601,7 +601,7 @@ bool refineStance(const State &s, int phase, Action &a,
 #ifdef DEBUG_REFINE_STATE
   std::cout << "dz_0 = " << dz_0 << std::endl;
 #endif
-
+  std::vector<std::vector<double>> constraints;
   // Declare booleans for validity checking
   bool grf_valid, friction_cone_valid, final_state_valid, midstance_state_valid,
       grf_increased;
@@ -632,7 +632,7 @@ bool refineStance(const State &s, int phase, Action &a,
 
     double buffer = 3e-2;
     if (phase == LEAP_STANCE) {
-      isValidState(s_final, planner_config, phase, pos_f[2]);
+      isValidState(constraints, s_final, planner_config, phase, pos_f[2]);
       pos_f[2] -= buffer;
     } else {
       pos_f[2] = planner_config.h_nom + getTerrainZ(pos_f, planner_config);
@@ -657,8 +657,8 @@ bool refineStance(const State &s, int phase, Action &a,
     friction_cone_valid =
         (grf_stance.head<2>().norm() <= abs(grf_stance[2] * planner_config.mu));
 
-    final_state_valid = isValidState(s_final, planner_config, phase);
-    midstance_state_valid = isValidState(s_midstance, planner_config, phase);
+    final_state_valid = isValidState(constraints, s_final, planner_config, phase);
+    midstance_state_valid = isValidState(constraints, s_midstance, planner_config, phase);
 
     // Exit if final state is invalid
     if (!final_state_valid) {
@@ -803,13 +803,13 @@ bool isValidAction(const Action &a, const PlannerConfig &planner_config) {
   return true;
 }
 
-bool isValidState(const State &s, const PlannerConfig &planner_config,
+bool isValidState(std::vector<std::vector<double>> &constraints, const State &s, const PlannerConfig &planner_config,
                   int phase) {
   double dummy_max_valid_z = 0;
-  return isValidState(s, planner_config, phase, dummy_max_valid_z);
+  return isValidState(constraints, s, planner_config, phase, dummy_max_valid_z);
 }
 
-bool isValidState(const State &s, const PlannerConfig &planner_config,
+bool isValidState(std::vector<std::vector<double>> &constraints, const State &s, const PlannerConfig &planner_config,
                   int phase, double &max_valid_z) {
   // Check elevation independent constraints first (out of range, velocity)
   if (!isInMap(s, planner_config)) {
@@ -953,10 +953,39 @@ bool isValidState(const State &s, const PlannerConfig &planner_config,
     }
   }
 
+  double conflict_threshold = 0.35;
+  //Put Collision Checker HERE
+  if (!constraints.empty()){
+    bool conflicts_with_robot = failsRobotConstraint(s, conflict_threshold, constraints);
+    if (conflicts_with_robot){
+      return false;
+    }
+  }
+
+
   return true;
 }
 
-bool isValidStateActionPair(const State &s_in, const Action &a,
+bool failsRobotConstraint(const State &state, double conflict_threshold, 
+              std::vector<std::vector<double>> constraints){
+    if (constraints.empty()){
+      return false;
+    }
+    for (auto pos : constraints){
+      if(dist(state, pos) < conflict_threshold){
+        // ROS_INFO_STREAM(dist(state, pos));
+        return true;
+      }
+    }
+    return false;
+}
+
+double dist(const State &state, std::vector<double> pos){
+  std::vector<double> stdVec(state.pos.data(), state.pos.data() + state.pos.size());
+  return poseDistance(pos, stdVec);
+}
+
+bool isValidStateActionPair(std::vector<std::vector<double>> &constraints, const State &s_in, const Action &a,
                             StateActionResult &result,
                             const PlannerConfig &planner_config) {
   // Declare stance and flight times
@@ -984,7 +1013,7 @@ bool isValidStateActionPair(const State &s_in, const Action &a,
     // Compute state to check
     State s_next = applyStance(s, a, t, phase, planner_config);
 
-    if (!isValidState(s_next, planner_config, phase)) {
+    if (!isValidState(constraints, s_next, planner_config, phase)) {
       result.t_new = (1.0 - planner_config.backup_ratio) * t;
       result.s_new = applyStance(s, a, result.t_new, phase, planner_config);
       result.a_new.t_s_leap = result.t_new;
@@ -1004,7 +1033,7 @@ bool isValidStateActionPair(const State &s_in, const Action &a,
 
   State s_takeoff = applyStance(s, a, phase, planner_config);
 
-  if (!isValidState(s_takeoff, planner_config, phase)) {
+  if (!isValidState(constraints, s_takeoff, planner_config, phase)) {
     result.t_new = (1.0 - planner_config.backup_ratio) * t_s;
     result.s_new = applyStance(s, a, result.t_new, planner_config);
     result.a_new.t_f = std::min(0.001, result.a_new.t_f);
@@ -1026,7 +1055,7 @@ bool isValidStateActionPair(const State &s_in, const Action &a,
     State s_next = applyFlight(s_takeoff, t, planner_config);
 
     // Check collision in flight
-    if (!isValidState(s_next, planner_config, FLIGHT)) {
+    if (!isValidState(constraints, s_next, planner_config, FLIGHT)) {
 #ifdef DEBUG_INVALID_STATE
       printf("Flight collision, exiting\n");
       printState(s_next);
@@ -1053,7 +1082,7 @@ bool isValidStateActionPair(const State &s_in, const Action &a,
       State s_next =
           applyStance(s_land, result.a_new, t, LAND_STANCE, planner_config);
 
-      if (!isValidState(s_next, planner_config, LAND_STANCE)) {
+      if (!isValidState(constraints, s_next, planner_config, LAND_STANCE)) {
 #ifdef DEBUG_INVALID_STATE
         printf("Invalid landing stance config\n");
 #endif
@@ -1069,7 +1098,7 @@ bool isValidStateActionPair(const State &s_in, const Action &a,
     State s_final =
         applyStance(s_land, result.a_new, LAND_STANCE, planner_config);
 
-    if (!isValidState(s_final, planner_config, LAND_STANCE)) {
+    if (!isValidState(constraints, s_final, planner_config, LAND_STANCE)) {
 #ifdef DEBUG_INVALID_STATE
       printf("Invalid s_final config");
 #endif

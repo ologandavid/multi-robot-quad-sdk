@@ -41,7 +41,7 @@ class GlobalBodyPlanner {
    * @brief Call the correct planning class and compute statistics
    * @return Boolean for success of the planner
    */
-  bool callPlanner();
+  bool callPlanner(std::vector<std::vector<double>> &constraintVector);
 
   /**
    * @brief Primary work function in class, called in node file for this

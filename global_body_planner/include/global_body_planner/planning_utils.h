@@ -801,7 +801,7 @@ bool isValidAction(const Action &a, const PlannerConfig &planner_config);
  * @param[in] max_height Maximum height
  * @return Whether the State is valid or not
  */
-bool isValidState(const State &s, const PlannerConfig &planner_config,
+bool isValidState(std::vector<std::vector<double>> &constraints, const State &s, const PlannerConfig &planner_config,
                   int phase);
 
 /**
@@ -813,7 +813,7 @@ bool isValidState(const State &s, const PlannerConfig &planner_config,
  * @param[in] max_height Maximum height
  * @return Whether the State is valid or not
  */
-bool isValidState(const State &s, const PlannerConfig &planner_config,
+bool isValidState(std::vector<std::vector<double>> &constraints, const State &s, const PlannerConfig &planner_config,
                   int phase, double &max_height);
 
 // Trajectory validity checking
@@ -825,7 +825,7 @@ bool isValidState(const State &s, const PlannerConfig &planner_config,
  * @param[in] planner_config Configuration parameters
  * @return Whether the StateActionPair is valid or not
  */
-bool isValidStateActionPair(const State &s, const Action &a,
+bool isValidStateActionPair(std::vector<std::vector<double>> &constraints, const State &s, const Action &a,
                             StateActionResult &result,
                             const PlannerConfig &planner_config);
 
@@ -843,6 +843,11 @@ void publishStateActionPair(const State &s, const Action &a,
                             const PlannerConfig &planner_config,
                             visualization_msgs::MarkerArray &tree_viz_msg,
                             ros::Publisher &tree_pub);
+double dist(const State &state, std::vector<double> pos);
+
+bool failsRobotConstraint(const State &state, double conflict_threshold, 
+              std::vector<std::vector<double>> constraints);
+
 }  // namespace planning_utils
 
 #endif

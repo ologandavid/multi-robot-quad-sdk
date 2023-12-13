@@ -181,7 +181,7 @@ bool ConflictBasedSearch::doPlansCollide(GraphNode& node,
               conflict = std::make_tuple(robot_a, robot_b, t_s, i-1);
               conflict_list.push_back(conflict);
               l_collision = 0;
-              ROS_INFO_STREAM("Adding Conflicts");
+              // ROS_INFO_STREAM("Adding Conflicts");
             }
           }
         }
@@ -197,7 +197,7 @@ void ConflictBasedSearch::getConstraintFromConflict(GraphNode& node,
             std::vector<std::vector<double>>& constraints){
     
     std::cout << std::get<1>(conflict) << std::endl;
-    ROS_INFO_STREAM(node.robot_plan_map_["robot_1"].states[2].body.pose.position.x);
+    // ROS_INFO_STREAM(node.robot_plan_map_["robot_1"].states[2].body.pose.position.x);
     for (int i = std::get<2>(conflict); i < std::get<3>(conflict); i++){
       double x = node.robot_plan_map_[std::get<1>(conflict)].states[i].body.pose.position.x;
       double y = node.robot_plan_map_[std::get<1>(conflict)].states[i].body.pose.position.y;
@@ -275,7 +275,7 @@ void ConflictBasedSearch::spin() {
 
   createServiceClients();
   ros::Duration timeout_duration(10.0);  // Specify the timeout duration (in seconds)
-
+  int counter = 0;
   // Enter main spin
   while (ros::ok()) {
     // Process callbacks
@@ -329,13 +329,12 @@ void ConflictBasedSearch::spin() {
               // std::cout << conflict_list.size() <<std::endl;
               goal_reached_ = true;
             }
+            // else if(counter == 1){
+            //   ROS_INFO_STREAM("Published Because of Counter");
+            //   publishPaths(*current_node_);
+            // }
             else{
-              ROS_INFO_STREAM("Pop off First Collision 2");
-              // std::cout << conflict_list.size() <<std::endl;
-              // std::tuple<std::string, std::string, int, int> curr_conflict = conflict_list.front();
-              // std::vector<std::vector<double>> curr_constraints;
-              // getConstraintFromConflict(*current_node_, curr_conflict, curr_constraints);
-              // printConstraints(curr_constraints);
+              // ROS_INFO_STREAM("Pop off First Collision 2");
 
               
               GraphNode* successor_1 = new GraphNode(robot_names_);
@@ -358,11 +357,12 @@ void ConflictBasedSearch::spin() {
               queue.push(successor_1);
               queue.push(successor_2);
               std::cout << "Queue Size" << queue.size() << std::endl;
+              counter++;
               
               //Pop off the first element Collision, add both nodes to the queue
               // Handle Collisions, Pop off First Collision, 
               //Add both Variations to Queue, Convert them to disticnt positions 
-              break;
+              // break;
             }
           }
         }

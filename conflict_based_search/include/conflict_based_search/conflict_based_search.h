@@ -166,7 +166,7 @@ class ConflictBasedSearch {
 
   bool goal_reached_;
 
-  double threshold = 0.5;
+  double threshold = 0.3;
 
   double time_thresh = 0.03;
 

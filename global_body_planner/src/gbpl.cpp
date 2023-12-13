@@ -4,7 +4,7 @@ using namespace planning_utils;
 
 GBPL::GBPL() {}
 
-int GBPL::connect(PlannerClass &T, State s, const PlannerConfig &planner_config,
+int GBPL::connect(std::vector<std::vector<double>> &constraints, PlannerClass &T, State s, const PlannerConfig &planner_config,
                   int direction, ros::Publisher &tree_pub) {
   // Find nearest neighbor
   flipDirection(s);
@@ -14,7 +14,7 @@ int GBPL::connect(PlannerClass &T, State s, const PlannerConfig &planner_config,
 
   // Try to connect to nearest neighbor, add to graph if REACHED or ADVANCED
   int connect_result =
-      attemptConnect(s_near, s, result, planner_config, direction);
+      attemptConnect(constraints, s_near, s, result, planner_config, direction);
   if (connect_result != TRAPPED) {
     int s_new_index = T.getNumVertices();
     T.addVertex(s_new_index, result.s_new);
@@ -41,7 +41,7 @@ std::vector<Action> GBPL::getActionSequenceReverse(PlannerClass &T,
   return action_sequence;
 }
 
-void GBPL::postProcessPath(std::vector<State> &state_sequence,
+void GBPL::postProcessPath(std::vector<std::vector<double>> &constraints, std::vector<State> &state_sequence,
                            std::vector<Action> &action_sequence,
                            const PlannerConfig &planner_config) {
   auto t_start = std::chrono::steady_clock::now();
@@ -76,7 +76,7 @@ void GBPL::postProcessPath(std::vector<State> &state_sequence,
     // Try to connect to the last state in the sequence
     // if unsuccesful remove the back and try again until successful or no
     // states left
-    while ((attemptConnect(s, s_next, result, planner_config, FORWARD) !=
+    while ((attemptConnect(constraints, s, s_next, result, planner_config, FORWARD) !=
             REACHED) &&
            (s != s_next)) {
       old_state = s_next;
@@ -100,7 +100,7 @@ void GBPL::postProcessPath(std::vector<State> &state_sequence,
       new_action_sequence.push_back(old_action);
 
       // Recompute path length
-      isValidStateActionPair(old_state, old_action, result, planner_config);
+      isValidStateActionPair(constraints, old_state, old_action, result, planner_config);
       path_length_ += result.length;
       s = old_state;
     }
@@ -114,7 +114,7 @@ void GBPL::postProcessPath(std::vector<State> &state_sequence,
   std::chrono::duration<double> processing_time = t_end - t_start;
 }
 
-void GBPL::extractPath(PlannerClass &Ta, PlannerClass &Tb,
+void GBPL::extractPath(std::vector<std::vector<double>> &constraints, PlannerClass &Ta, PlannerClass &Tb,
                        std::vector<State> &state_sequence,
                        std::vector<Action> &action_sequence,
                        const PlannerConfig &planner_config) {
@@ -143,31 +143,31 @@ void GBPL::extractPath(PlannerClass &Ta, PlannerClass &Tb,
                          action_sequence_b.end());
 
   // Post process to reduce the path length
-  postProcessPath(state_sequence, action_sequence, planner_config);
+  postProcessPath(constraints, state_sequence, action_sequence, planner_config);
 }
 
-void GBPL::extractClosestPath(PlannerClass &Ta, const State &s_goal,
+void GBPL::extractClosestPath(std::vector<std::vector<double>> &constraints, PlannerClass &Ta, const State &s_goal,
                               std::vector<State> &state_sequence,
                               std::vector<Action> &action_sequence,
                               const PlannerConfig &planner_config) {
   std::vector<int> path_a = pathFromStart(Ta, Ta.getNearestNeighbor(s_goal));
   state_sequence = getStateSequence(Ta, path_a);
   action_sequence = getActionSequence(Ta, path_a);
-  postProcessPath(state_sequence, action_sequence, planner_config);
+  postProcessPath(constraints, state_sequence, action_sequence, planner_config);
 }
 
 int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
                    State s_goal, std::vector<State> &state_sequence,
                    std::vector<Action> &action_sequence,
-                   ros::Publisher &tree_pub) {
+                   ros::Publisher &tree_pub, std::vector<std::vector<double>> &constraints) {
   // Perform validity checking on start and goal states
-  if (!isValidState(s_start, planner_config, LEAP_STANCE)) {
+  if (!isValidState(constraints, s_start, planner_config, LEAP_STANCE)) {
     return INVALID_START_STATE;
   }
   // Set goal height to nominal distance above terrain
   s_goal.pos[2] =
       getTerrainZFromState(s_goal, planner_config) + planner_config.h_nom;
-  if (!isValidState(s_goal, planner_config, LEAP_STANCE)) {
+  if (!isValidState(constraints, s_goal, planner_config, LEAP_STANCE)) {
     return INVALID_GOAL_STATE;
   }
   if (poseDistance(s_start, s_goal) <= 1e-1) {
@@ -224,8 +224,8 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
     // Generate random s
     State s_rand = Ta.randomState(planner_config);
 
-    if (isValidState(s_rand, planner_config, LEAP_STANCE)) {
-      if (extend(Ta, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
+    if (isValidState(constraints, s_rand, planner_config, LEAP_STANCE)) {
+      if (extend(constraints, Ta, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
         State s_new = Ta.getVertex(Ta.getNumVertices() - 1);
 
 #ifdef VISUALIZE_TREE
@@ -236,7 +236,7 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
                                tree_viz_msg_, tree_pub);
 #endif
 
-        if (connect(Tb, s_new, planner_config, FORWARD, tree_pub) == REACHED) {
+        if (connect(constraints, Tb, s_new, planner_config, FORWARD, tree_pub) == REACHED) {
           goal_found = true;
 
           auto t_end = std::chrono::steady_clock::now();
@@ -250,8 +250,8 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
 
     s_rand = Tb.randomState(planner_config);
 
-    if (isValidState(s_rand, planner_config, LEAP_STANCE)) {
-      if (extend(Tb, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
+    if (isValidState(constraints, s_rand, planner_config, LEAP_STANCE)) {
+      if (extend(constraints, Tb, s_rand, planner_config, FORWARD, tree_pub) != TRAPPED) {
         State s_new = Tb.getVertex(Tb.getNumVertices() - 1);
 
 #ifdef VISUALIZE_TREE
@@ -262,7 +262,7 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
                                tree_viz_msg_, tree_pub);
 #endif
 
-        if (connect(Ta, s_new, planner_config, FORWARD, tree_pub) == REACHED) {
+        if (connect(constraints, Ta, s_new, planner_config, FORWARD, tree_pub) == REACHED) {
           goal_found = true;
 
           auto t_end = std::chrono::steady_clock::now();
@@ -278,10 +278,10 @@ int GBPL::findPlan(const PlannerConfig &planner_config, State s_start,
   num_vertices_ = (Ta.getNumVertices() + Tb.getNumVertices());
 
   if (goal_found == true) {
-    extractPath(Ta, Tb, state_sequence, action_sequence, planner_config);
+    extractPath(constraints, Ta, Tb, state_sequence, action_sequence, planner_config);
     result = VALID;
   } else {
-    extractClosestPath(Ta, s_goal, state_sequence, action_sequence,
+    extractClosestPath(constraints, Ta, s_goal, state_sequence, action_sequence,
                        planner_config);
     result = (state_sequence.size() > 1) ? VALID_PARTIAL : UNSOLVED;
   }
