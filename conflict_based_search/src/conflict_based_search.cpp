@@ -309,6 +309,7 @@ void ConflictBasedSearch::spin() {
               // publishPaths(*current_node_);
               // std::cout << conflict_list.size() <<std::endl;
               goal_reached_ = true;
+              break;
             }
             else{
               ROS_INFO_STREAM("Pop off First Collision 1");
@@ -328,6 +329,7 @@ void ConflictBasedSearch::spin() {
               publishPaths(*current_node_);
               // std::cout << conflict_list.size() <<std::endl;
               goal_reached_ = true;
+              break;
             }
             // else if(counter == 1){
             //   ROS_INFO_STREAM("Published Because of Counter");

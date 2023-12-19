@@ -37,6 +37,12 @@ GlobalBodyPlanner::GlobalBodyPlanner(ros::NodeHandle nh) {
 
   std::string ns = nh_.getNamespace(); // Need to Come up With a Better Way to do This
   if (ns == "/robot_2"){
+    goal_state_vec = {5.0, -1.0};
+  }
+  if (ns == "/robot_3"){
+    goal_state_vec = {0.0, -1.0};
+  }
+  if (ns == "/robot_4"){
     goal_state_vec = {0.0, 1.0};
   }
 

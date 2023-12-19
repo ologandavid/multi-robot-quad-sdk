@@ -187,6 +187,38 @@ Visualization Manager:
       Update Interval: 0
       Value: false
       Visual Enabled: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: false
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+      Name: Robot 3 Ground Truth State
+      Robot Description: robot_description
+      TF Prefix: robot_3_ground_truth
+      Update Interval: 0
+      Value: false
+      Visual Enabled: true
+    - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: false
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+      Name: Robot 4 Ground Truth State
+      Robot Description: robot_description
+      TF Prefix: robot_4_ground_truth
+      Update Interval: 0
+      Value: false
+      Visual Enabled: true
     - Alpha: 0.10000000149011612
       Class: rviz/RobotModel
       Collision Enabled: false

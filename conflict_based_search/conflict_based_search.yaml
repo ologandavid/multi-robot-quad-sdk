@@ -1,6 +1,6 @@
 conflict_based_search:
   update_rate: 5
-  robot_names: ["robot_1", "robot_2"]
+  robot_names: ["robot_1", "robot_2", "robot_3", "robot_4"]
 
 
 

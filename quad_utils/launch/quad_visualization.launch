@@ -12,6 +12,8 @@
     <!-- Define the namespaces if not already set -->
     <arg name="namespace_1" default="robot_1"/>
     <arg name="namespace_2" default="robot_2"/>
+    <arg name="namespace_3" default="robot_3"/>
+    <arg name="namespace_4" default="robot_4"/>
 
     <!-- Launch visualization plugins -->
     <group ns = "$(arg namespace_1)">
@@ -29,6 +31,22 @@
 
             <include file="$(find quad_utils)/launch/visualization_plugins.launch">
                 <arg name="namespace" value="$(arg namespace_2)"/>
+                <arg name="robot_type" default="$(arg robot_type)"/>
+            </include>
+        </group>
+        <group ns = "$(arg namespace_3)">
+            <param name="tf_prefix" value="$(arg namespace_3)" />
+
+            <include file="$(find quad_utils)/launch/visualization_plugins.launch">
+                <arg name="namespace" value="$(arg namespace_3)"/>
+                <arg name="robot_type" default="$(arg robot_type)"/>
+            </include>
+        </group>
+        <group ns = "$(arg namespace_4)">
+            <param name="tf_prefix" value="$(arg namespace_4)" />
+
+            <include file="$(find quad_utils)/launch/visualization_plugins.launch">
+                <arg name="namespace" value="$(arg namespace_4)"/>
                 <arg name="robot_type" default="$(arg robot_type)"/>
             </include>
         </group>

@@ -953,7 +953,7 @@ bool isValidState(std::vector<std::vector<double>> &constraints, const State &s,
     }
   }
 
-  double conflict_threshold = 0.35;
+  double conflict_threshold = 0.33;
   //Put Collision Checker HERE
   if (!constraints.empty()){
     bool conflicts_with_robot = failsRobotConstraint(s, conflict_threshold, constraints);
