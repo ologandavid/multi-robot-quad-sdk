@@ -57,6 +57,21 @@ Refer to the [Quad-SDK Wiki](https://github.com/robomechanics/quad-sdk/wiki/1.-G
 
 ## Usage
 
+To access Sequential RRT Branch:
+```
+git checkout sequential_rrt_planner
+```
+
+To access Joint RRT-Connect Branch:
+```
+git checkout joint_rrt_planner
+```
+
+To access Conflict Based Search Branch:
+```
+git checkout devel_cbs
+```
+
 Launch the simulation with:
 
 ```
